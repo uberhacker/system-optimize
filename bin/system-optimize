@@ -1,0 +1,345 @@
+#!/usr/bin/env bash
+# system-optimize - tune a Linux machine for its hardware, reversibly:
+# kernel settings sized to its RAM and swap, disk I/O schedulers, the CPU
+# power profile, open-file limits and SSD trim, plus a report of the
+# well-known helpers (tuned, earlyoom, systemd-oomd, zram, irqbalance, ...)
+# that can install the missing ones. Every real run saves a snapshot that
+# --undo restores.
+#
+# The entry point. It resolves its own location through symlinks, loads the
+# modules from ../lib and runs. Requires bash 4.4 or newer.
+#
+# A modular rewrite of Ed Reel's system-optimize
+# (https://github.com/uberhacker/system-optimize). GPL-3.0, see LICENSE.
+
+set -uo pipefail
+
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ] ||
+   { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -lt 4 ]; }; then
+  echo "system-optimize needs bash 4.4 or newer (found ${BASH_VERSION:-unknown})" >&2
+  exit 1
+fi
+
+# The core relies on a few external commands (coreutils or BusyBox, grep,
+# sed); say which one is missing up front instead of failing inside a step.
+for _so_cmd in mktemp readlink grep sed sort; do
+  if ! command -v "$_so_cmd" >/dev/null 2>&1; then
+    echo "system-optimize needs '$_so_cmd' on PATH (coreutils or BusyBox, grep and sed are required)" >&2
+    exit 1
+  fi
+done
+unset _so_cmd
+
+# so_resolve_self: absolute path of this file, following symlinks.
+so_resolve_self() {
+  local src="${BASH_SOURCE[0]}" dir
+  while [ -L "$src" ]; do
+    dir=$(cd -P "$(dirname "$src")" && pwd)
+    src=$(readlink "$src")
+    [[ "$src" != /* ]] && src="$dir/$src"
+  done
+  printf '%s/%s\n' "$(cd -P "$(dirname "$src")" && pwd)" "$(basename "$src")"
+}
+# SO_BIN is this program's real path. SO_ROOT_DIR is the tree it was loaded
+# from: the directory above bin/, or for a single-file build the directory
+# holding the file. SO_BUNDLED is a build constant, not a setting: build.sh
+# rewrites the next line to SO_BUNDLED=1.
+SO_BUNDLED=0
+SO_BIN=$(so_resolve_self)
+if [ "$SO_BUNDLED" = 1 ]; then
+  SO_ROOT_DIR=$(dirname "$SO_BIN")
+else
+  SO_ROOT_DIR=$(cd -P "$(dirname "$SO_BIN")/.." && pwd)
+fi
+export SO_ROOT_DIR
+
+# Modules. build.sh replaces everything between the two markers with the
+# modules' contents to make the single-file build.
+# @@BUNDLE-MODULES-BEGIN@@
+# shellcheck source=lib/core/log.sh
+source "$SO_ROOT_DIR/lib/core/log.sh"
+# shellcheck source=lib/core/util.sh
+source "$SO_ROOT_DIR/lib/core/util.sh"
+# shellcheck source=lib/core/config.sh
+source "$SO_ROOT_DIR/lib/core/config.sh"
+# shellcheck source=lib/core/steps.sh
+source "$SO_ROOT_DIR/lib/core/steps.sh"
+# shellcheck source=lib/core/args.sh
+source "$SO_ROOT_DIR/lib/core/args.sh"
+# shellcheck source=lib/core/sysinfo.sh
+source "$SO_ROOT_DIR/lib/core/sysinfo.sh"
+# shellcheck source=lib/core/os.sh
+source "$SO_ROOT_DIR/lib/core/os.sh"
+# shellcheck source=lib/core/runner.sh
+source "$SO_ROOT_DIR/lib/core/runner.sh"
+# shellcheck source=lib/core/runlog.sh
+source "$SO_ROOT_DIR/lib/core/runlog.sh"
+# shellcheck source=lib/core/snapshot.sh
+source "$SO_ROOT_DIR/lib/core/snapshot.sh"
+# shellcheck source=lib/core/json.sh
+source "$SO_ROOT_DIR/lib/core/json.sh"
+# shellcheck source=lib/core/detect.sh
+source "$SO_ROOT_DIR/lib/core/detect.sh"
+# shellcheck source=lib/core/desktop.sh
+source "$SO_ROOT_DIR/lib/core/desktop.sh"
+# shellcheck source=lib/core/history.sh
+source "$SO_ROOT_DIR/lib/core/history.sh"
+# shellcheck source=lib/core/bench.sh
+source "$SO_ROOT_DIR/lib/core/bench.sh"
+# shellcheck source=lib/core/manage.sh
+source "$SO_ROOT_DIR/lib/core/manage.sh"
+# shellcheck source=lib/core/share.sh
+source "$SO_ROOT_DIR/lib/core/share.sh"
+# shellcheck source=lib/core/report.sh
+source "$SO_ROOT_DIR/lib/core/report.sh"
+# shellcheck source=lib/core/selfupdate.sh
+source "$SO_ROOT_DIR/lib/core/selfupdate.sh"
+# shellcheck source=lib/tweaks/legacy.sh
+source "$SO_ROOT_DIR/lib/tweaks/legacy.sh"
+# shellcheck source=lib/tweaks/sysctl.sh
+source "$SO_ROOT_DIR/lib/tweaks/sysctl.sh"
+# shellcheck source=lib/tweaks/memory.sh
+source "$SO_ROOT_DIR/lib/tweaks/memory.sh"
+# shellcheck source=lib/tweaks/io.sh
+source "$SO_ROOT_DIR/lib/tweaks/io.sh"
+# shellcheck source=lib/tweaks/storage.sh
+source "$SO_ROOT_DIR/lib/tweaks/storage.sh"
+# shellcheck source=lib/tweaks/cpu.sh
+source "$SO_ROOT_DIR/lib/tweaks/cpu.sh"
+# shellcheck source=lib/tweaks/scheduler.sh
+source "$SO_ROOT_DIR/lib/tweaks/scheduler.sh"
+# shellcheck source=lib/tweaks/power.sh
+source "$SO_ROOT_DIR/lib/tweaks/power.sh"
+# shellcheck source=lib/tweaks/limits.sh
+source "$SO_ROOT_DIR/lib/tweaks/limits.sh"
+# shellcheck source=lib/tweaks/trim.sh
+source "$SO_ROOT_DIR/lib/tweaks/trim.sh"
+# shellcheck source=lib/tweaks/boot.sh
+source "$SO_ROOT_DIR/lib/tweaks/boot.sh"
+# shellcheck source=lib/tweaks/network.sh
+source "$SO_ROOT_DIR/lib/tweaks/network.sh"
+# shellcheck source=lib/tweaks/display.sh
+source "$SO_ROOT_DIR/lib/tweaks/display.sh"
+# shellcheck source=lib/tweaks/pkgs.sh
+source "$SO_ROOT_DIR/lib/tweaks/pkgs.sh"
+# shellcheck source=lib/tweaks/gpu.sh
+source "$SO_ROOT_DIR/lib/tweaks/gpu.sh"
+# shellcheck source=lib/tweaks/tools.sh
+source "$SO_ROOT_DIR/lib/tweaks/tools.sh"
+# shellcheck source=lib/tweaks/driftwatch.sh
+source "$SO_ROOT_DIR/lib/tweaks/driftwatch.sh"
+# shellcheck source=lib/core/status.sh
+source "$SO_ROOT_DIR/lib/core/status.sh"
+# @@BUNDLE-MODULES-END@@
+
+# version_string: "system-optimize X.Y.Z (git abcdef1)"
+version_string() {
+  local v commit=""
+  if [ "$SO_BUNDLED" = 1 ]; then
+    printf 'system-optimize %s (git %s, single file)\n' "${SO_BUNDLE_VERSION:-unknown}" "${SO_BUNDLE_COMMIT:-unknown}"
+    return 0
+  fi
+  v=$(tr -d '[:space:]' < "$SO_ROOT_DIR/VERSION" 2>/dev/null || echo unknown)
+  if [ -e "$SO_ROOT_DIR/.git" ] && has_cmd git; then
+    commit=$(git -C "$SO_ROOT_DIR" rev-parse --short HEAD 2>/dev/null || true)
+  fi
+  printf 'system-optimize %s%s\n' "$v" "${commit:+ (git $commit)}"
+}
+
+# completion_main SHELL: print the completion script (--completion bash).
+# A single-file build carries it as so_completion_script (added by build.sh).
+completion_main() {
+  case "$1" in
+    bash|zsh) ;;
+    *) echo "system-optimize: --completion supports bash (zsh can load it with bashcompinit)" >&2; return 2 ;;
+  esac
+  if declare -F so_completion_script >/dev/null; then
+    so_completion_script
+  else
+    cat -- "$SO_ROOT_DIR/completions/system-optimize.bash"
+  fi
+}
+
+# preflight: may this run change the system? A dry run only warns.
+preflight() {
+  local os
+  os=$(uname -s 2>/dev/null)
+  if [ "$os" != Linux ]; then
+    log_error "system-optimize only runs on Linux (this is ${os:-unknown})"
+    return 1
+  fi
+  if [ ! -r "$(so_path /proc/meminfo)" ]; then
+    log_error "cannot read $(so_path /proc/meminfo); is /proc mounted?"
+    return 1
+  fi
+  # --undo (and --rollback, --confirm) only reverse or keep what a run
+  # recorded, so they need no --force.
+  if [ "$SO_IN_CONTAINER" = 1 ] && ! list_has "undo rollback confirm" "$SO_ARG_MODE"; then
+    if [ "$SO_DRY_RUN" = 1 ]; then
+      log_warn "running in a container ($SO_CONTAINER_NAME): a real run would refuse without --force"
+    elif cfg_bool FORCE; then
+      log_warn "running in a container ($SO_CONTAINER_NAME); going ahead because of --force"
+    else
+      log_error "running in a container ($SO_CONTAINER_NAME): its kernel, disks and CPUs belong to the host"
+      log_info "run it on the host, or pass --force to change the container's own files anyway"
+      return 1
+    fi
+  fi
+  if [ "$SO_DRY_RUN" != 1 ] && ! is_root && [ "${SO_SKIP_ROOT_CHECK:-0}" != 1 ]; then
+    log_error "changing the system needs root: sudo $(basename -- "$0")${SO_COMMAND_ARGS:+ $SO_COMMAND_ARGS}"
+    log_info "--dry-run and --status work without root"
+    return 1
+  fi
+  return 0
+}
+
+# apply_main: the optimisation run (with --benchmark, measured before and
+# after; with --safe-apply, undone later unless confirmed).
+apply_main() {
+  local steps s before_row="" id reboot=""
+  steps=$(steps_selected)
+  if [ "$SO_DRY_RUN" != 1 ]; then
+    log_info "a snapshot of everything changed is saved first; system-optimize --undo restores it"
+    [ -z "$SO_PROFILE" ] || log_info "profile $SO_PROFILE: ${SO_PROFILE_TITLE[$SO_PROFILE]}"
+    confirm "Apply the optimizations ($steps)?" || return 1
+  fi
+  if cfg_bool BENCHMARK; then
+    if [ "$SO_DRY_RUN" = 1 ]; then
+      log_info "no benchmark in a dry run"
+    elif bench_run before; then
+      bench_save before
+      before_row=$(bench_row @SNAPSHOT@)
+    fi
+  fi
+  for s in "${SO_STEPS[@]}"; do
+    run_step "$s" "${SO_STEP_FUNC[$s]}"
+  done
+  for ((s = 0; s < ${#SO_STEP_NAMES[@]}; s++)); do
+    if [ "${SO_STEP_RESULTS[s]}" = updated ] && step_has_flag "${SO_STEP_NAMES[s]}" reboot; then
+      reboot+="${reboot:+, }${SO_STEP_NAMES[s]}"
+    fi
+  done
+  [ -z "$reboot" ] || log_warn "reboot to finish: $reboot"
+  if [ -n "$before_row" ]; then
+    id=$(snap_id)
+    if bench_run after "${id:--}"; then
+      log_plain "${C_BOLD}Benchmark${C_RESET} before -> after"
+      bench_print_compare before
+      SO_BENCH_PCT=$(bench_change_pct before)
+      hist_add benchmarks "${before_row/@SNAPSHOT@/${id:--}}" "$(bench_row)"
+    fi
+  fi
+  safe_after_run
+  return 0
+}
+
+# run_json: the result of a run that changes things, with --json.
+run_json() {
+  local i sep=""
+  printf '{"mode":%s,"dry_run":%s,"exit_status":%s,"snapshot":%s,"profile":%s,"steps":[' \
+    "$(json_str "$SO_ARG_MODE")" "$(json_bool "$SO_DRY_RUN")" "$1" "$(json_str_or_null "$(snap_id)")" \
+    "$(json_str_or_null "$SO_PROFILE")"
+  for ((i = 0; i < ${#SO_STEP_NAMES[@]}; i++)); do
+    printf '%s{"name":%s,"result":%s,"note":%s}' "$sep" "$(json_str "${SO_STEP_NAMES[i]}")" \
+      "$(json_str "${SO_STEP_RESULTS[i]}")" "$(json_str "${SO_STEP_NOTES[i]}")"
+    sep=","
+  done
+  printf '],"benchmark_change_pct":%s,"safe_apply":%s,"log":%s}\n' "$(json_num "${SO_BENCH_PCT:-}")" \
+    "$(json_str_or_null "${SO_SAFE_STATE:-}")" "$(json_str_or_null "$SO_LOG_FILE")"
+}
+
+main() {
+  local rc=0 mode
+
+  user_init
+  SO_COMMAND_ARGS=$(so_quote "$@")
+  SO_COMMAND_LINE="system-optimize${SO_COMMAND_ARGS:+ $SO_COMMAND_ARGS}"
+  if ! args_parse "$@"; then
+    log_plain ""
+    usage >&2
+    exit 2
+  fi
+  if [ "$SO_ARG_HELP" = 1 ]; then usage; exit 0; fi
+  if [ "$SO_ARG_VERSION" = 1 ]; then version_string; exit 0; fi
+  if [ -n "$SO_ARG_COMPLETION" ]; then completion_main "$SO_ARG_COMPLETION"; exit $?; fi
+
+  [ -n "$SO_CONFIG_FILE" ] && [[ "$SO_CONFIG_FILE" != /* ]] && SO_CONFIG_FILE="$PWD/$SO_CONFIG_FILE"
+  [ -n "$SO_LOG_PATH" ] && [[ "$SO_LOG_PATH" != /* ]] && SO_LOG_PATH="$PWD/$SO_LOG_PATH"
+  [ -n "$SO_ARG_FILE" ] && [[ "$SO_ARG_FILE" != /* ]] && SO_ARG_FILE="$PWD/$SO_ARG_FILE"
+  config_load
+  args_apply || exit 2
+
+  if [ "$SO_ARG_SELF_UPDATE" = 1 ]; then
+    [ "$SO_QUIET" = 1 ] && exec >/dev/null 2>&1
+    runlog_open self-update "$@"
+    selfupdate_main || rc=1
+    [ -n "$SO_LOG_FILE" ] && log_plain "  log: $SO_LOG_FILE"
+    runlog_close "$rc"
+    exit "$rc"
+  fi
+
+  sysinfo_detect
+  mode="$SO_ARG_MODE"
+  # Read-only modes: no log, no root, nothing changed.
+  case "$mode" in
+    status)
+      if [ "$SO_JSON" = 1 ]; then status_json; exit 0; fi
+      log_plain "${C_BOLD}$(version_string)${C_RESET}"
+      status_main
+      exit 0 ;;
+    list-snapshots) list_snapshots_main; exit 0 ;;
+    list-steps) list_steps_main; exit 0 ;;
+    describe) describe_main "$SO_ARG_DESCRIBE"; exit 0 ;;
+    history) history_main; exit 0 ;;
+    diff-config) diff_main "$SO_ARG_FILE"; exit $? ;;
+    export) export_main "$SO_ARG_FILE"; exit $? ;;
+    history-prune) hist_prune_main "$SO_ARG_DAYS"; exit $? ;;
+    history-clear) hist_clear; exit $? ;;
+    benchmark-only)
+      runlog_open benchmark "$@"
+      bench_only_main || rc=1
+      runlog_close "$rc"
+      exit "$rc" ;;
+    check-drift)
+      [ "$SO_QUIET" = 1 ] && exec >/dev/null 2>&1
+      runlog_open check-drift "$@"
+      drift_main || rc=1
+      runlog_close "$rc"
+      exit "$rc" ;;
+  esac
+
+  # --quiet hides third-party output (it is still in the run log). Our own
+  # lines go to the console descriptor SO_OUT and are unaffected.
+  [ "$SO_QUIET" = 1 ] && exec >/dev/null 2>&1
+  runlog_open "$mode" "$@"
+  log_plain "${C_BOLD}$(version_string)${C_RESET} on $(sysinfo_describe_os)"
+  log_plain "  $(sysinfo_describe_hw)"
+  if [ "$SO_DRY_RUN" = 1 ]; then
+    log_plain "${C_MAGENTA}dry run: nothing will be changed${C_RESET}"
+  fi
+
+  if preflight; then
+    case "$mode" in
+      undo) undo_main "$SO_ARG_SNAPSHOT" || rc=1 ;;
+      rollback) rollback_main "$SO_ARG_SNAPSHOT" || rc=1 ;;
+      confirm) confirm_main "$SO_ARG_SNAPSHOT" || rc=1 ;;
+      tune) tune_main || rc=1 ;;
+      import) import_main "$SO_ARG_FILE" || rc=1 ;;
+      *) apply_main || rc=1 ;;
+    esac
+  else
+    rc=1
+  fi
+  summary_print || rc=1
+  SO_RUN_RC="$rc"
+  [ "$SO_DRY_RUN" = 1 ] || history_record_run "$mode"
+  if [ -n "$SO_SNAP" ]; then
+    log_plain "  snapshot: ${SO_SNAP##*/} (undo: system-optimize --undo ${SO_SNAP##*/})"
+  fi
+  [ -n "$SO_LOG_FILE" ] && log_plain "  log: $SO_LOG_FILE"
+  [ "$SO_JSON" = 1 ] && run_json "$rc"
+  runlog_close "$rc"
+  exit "$rc"
+}
+
+main "$@"

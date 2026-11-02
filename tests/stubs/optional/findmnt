@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# findmnt stub: "findmnt --verify --tab-file FILE" fails when FILE holds the
+# text in STUB_FINDMNT_BAD (or with STUB_EXIT_findmnt).
+printf 'findmnt %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+file=""
+while [ $# -gt 0 ]; do
+  case "$1" in --tab-file) file="$2"; shift ;; esac
+  shift
+done
+if [ -n "${STUB_FINDMNT_BAD:-}" ] && [ -n "$file" ] && grep -qF -- "$STUB_FINDMNT_BAD" "$file"; then
+  echo "[E] unknown option in $file"
+  exit 1
+fi
+exit "${STUB_EXIT_findmnt:-0}"

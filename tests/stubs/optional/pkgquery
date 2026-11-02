@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Package query stub for apk, xbps-query and dpkg-query: a package is
+# installed when its name is in STUB_PKG_INSTALLED (apt prints a status).
+name="$(basename "$0")"
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+pkg="${*: -1}"
+installed=0
+[[ " ${STUB_PKG_INSTALLED:-} " == *" $pkg "* ]] && installed=1
+case "$name:${1:-}" in
+  apk:info|xbps-query:*) [ "$installed" = 1 ] ;;
+  dpkg-query:*) [ "$installed" = 1 ] && printf 'install ok installed'; [ "$installed" = 1 ] ;;
+  *) exit "${STUB_EXIT_apk:-0}" ;;
+esac

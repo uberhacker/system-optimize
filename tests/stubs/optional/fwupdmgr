@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# fwupdmgr stub: get-updates answers from STUB_FWUPD_UPDATES ("NAME|CURRENT|NEW"
+# entries separated by ";"); none: exit 2. STUB_FWUPD_NOJSON=1 is an old
+# fwupd whose get-updates has no --json.
+printf 'fwupdmgr %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[ "${1:-}" = get-updates ] || exit "${STUB_EXIT_fwupdmgr:-0}"
+json=0
+for a in "$@"; do [ "$a" = --json ] && json=1; done
+if [ "$json" = 1 ] && [ "${STUB_FWUPD_NOJSON:-0}" = 1 ]; then
+  echo "Unknown option --json" >&2; exit 1
+fi
+if [ -z "${STUB_FWUPD_UPDATES:-}" ]; then
+  [ "$json" = 1 ] && printf '{\n  "Devices" : [\n  ]\n}\n'
+  [ "$json" = 1 ] || echo "No updatable devices"
+  exit 2
+fi
+IFS=';' read -ra devs <<< "$STUB_FWUPD_UPDATES"
+if [ "$json" = 1 ]; then
+  printf '{\n  "Devices" : [\n'
+  sep=""
+  for d in "${devs[@]}"; do
+    IFS='|' read -r name cur new <<< "$d"
+    printf '%s    {\n      "Name" : "%s",\n      "DeviceId" : "abc",\n      "Guid" : [\n        "0000"\n      ],\n      "Version" : "%s",\n      "Releases" : [\n        {\n          "Name" : "%s {firmware}",\n          "Version" : "%s",\n          "Description" : "<p>Fixes \\"things\\" [1]</p>"\n        },\n        {\n          "Version" : "0.0.1"\n        }\n      ]\n    }' "$sep" "$name" "$cur" "$name" "$new"
+    sep=$',\n'
+  done
+  printf '\n  ]\n}\n'
+else
+  echo "Framework Laptop 13"
+  echo "│"
+  for d in "${devs[@]}"; do
+    IFS='|' read -r name cur new <<< "$d"
+    printf '├─%s:\n│ │   Device ID:          abc\n│ │   Current version:    %s\n│ │   Flags:\n│ │ \n│ └─%s Update:\n│       New version:      %s\n│       Remote ID:        lvfs\n│ \n' "$name" "$cur" "$name" "$new"
+  done
+fi
+exit 0

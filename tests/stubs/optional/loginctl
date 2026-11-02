@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# loginctl stub: one session "1" when STUB_SESSION_USER is set, with
+# STUB_SESSION_TYPE (default wayland) and STUB_SESSION_DESKTOP (default GNOME).
+printf 'loginctl %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[ -n "${STUB_SESSION_USER:-}" ] || exit 0
+case "${1:-}" in
+  list-sessions) echo "1 1000 $STUB_SESSION_USER seat0 tty2" ;;
+  show-session)
+    case "$4" in
+      Type) echo "${STUB_SESSION_TYPE:-wayland}" ;;
+      Active) echo yes ;;
+      Name) echo "$STUB_SESSION_USER" ;;
+      Desktop) echo "${STUB_SESSION_DESKTOP:-GNOME}" ;;
+    esac ;;
+esac
+exit 0

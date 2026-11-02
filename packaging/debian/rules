@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+export PYBUILD_DISABLE = 1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	@echo "Nothing to build: Python and JavaScript."
+
+override_dh_auto_install:
+	$(MAKE) -C tray install DESTDIR=$(CURDIR)/debian/tmp PREFIX=/usr
+
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	cd tray && QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests
+endif

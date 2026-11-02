@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# amd-ttm stub (amd-debug-tools): --set GB writes the sandbox's
+# /etc/modprobe.d/ttm.conf as amd-ttm does, then asks whether to reboot and
+# fails, like the real one, when nothing answers. STUB_EXIT_amd_ttm=N fails
+# before writing.
+printf 'amd-ttm %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[ "${STUB_EXIT_amd_ttm:-0}" = 0 ] || exit "$STUB_EXIT_amd_ttm"
+case "${1:-}" in
+  --set)
+    pages=$(awk -v g="$2" 'BEGIN { printf "%d", g * 1073741824 / 4096 }')
+    mkdir -p "${SANDBOX:?}/etc/modprobe.d"
+    printf 'options ttm pages_limit=%s\n' "$pages" > "$SANDBOX/etc/modprobe.d/ttm.conf"
+    echo "Successfully set TTM pages limit to $pages pages"
+    printf 'Would you like to reboot the system now? (y/n): '
+    read -r answer || { echo "EOFError" >&2; exit 1; }
+    printf '%s\n' "$answer" > "$SANDBOX/amd-ttm-answer" ;;
+  --clear) rm -f "${SANDBOX:?}/etc/modprobe.d/ttm.conf" ;;
+  *) echo "Current TTM pages limit: $(cat "${SANDBOX:?}/sys/module/ttm/parameters/pages_limit" 2>/dev/null) pages" ;;
+esac

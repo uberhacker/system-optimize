@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# kreadconfig6 stub: reads what the kwriteconfig6 stub wrote.
+printf '%s %s\n' "$(basename "$0")" "$*" >> "${STUB_LOG:-/dev/null}"
+d="${STUB_STATE:-/tmp}/kconfig"
+file="" group="" key=""
+while [ $# -gt 0 ]; do
+  case "$1" in --file) file="$2"; shift ;; --group) group="$2"; shift ;; --key) key="$2"; shift ;; esac
+  shift
+done
+cat "$d/$file $group $key" 2>/dev/null
+exit 0

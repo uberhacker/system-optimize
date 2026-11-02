@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>system-optimize</vendor>
+  <vendor_url>https://github.com/bradvrudney/system-optimize</vendor_url>
+  <icon_name>system-optimize-tray</icon_name>
+
+  <!-- The tray app and the GNOME extension ask for this when they change
+       the machine. The helper accepts only a fixed set of system-optimize
+       requests; every one saves a snapshot that undo restores. An
+       administrator's password is needed, then kept for a few minutes. -->
+  <action id="io.github.bradvrudney.system-optimize.change">
+    <description>Change system tuning with system-optimize</description>
+    <message>Authentication is required to change system tuning settings</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/system-optimize/system-optimize-helper</annotate>
+  </action>
+</policyconfig>

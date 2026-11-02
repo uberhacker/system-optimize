@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# rpm stub: "rpm -q --quiet NAME" succeeds for names in STUB_RPM_INSTALLED.
+printf 'rpm %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+name="${*: -1}"
+[[ " ${STUB_RPM_INSTALLED:-} " == *" $name "* ]]

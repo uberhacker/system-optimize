@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# modinfo stub: no module exists (STUB_EXIT_modinfo=0: every one does).
+printf 'modinfo %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+exit "${STUB_EXIT_modinfo:-1}"

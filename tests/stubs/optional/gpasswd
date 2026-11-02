@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# gpasswd stub: -a USER GROUP / -d USER GROUP change the sandbox's /etc/group.
+printf 'gpasswd %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[ "${STUB_EXIT_gpasswd:-0}" = 0 ] || exit "$STUB_EXIT_gpasswd"
+f="${SANDBOX:?}/etc/group"
+case "${1:-}" in
+  -a) awk -F: -v OFS=: -v u="$2" -v g="$3" '$1 == g { $4 = ($4 == "" ? u : $4 "," u) } { print }' "$f" > "$f.new" && mv "$f.new" "$f" ;;
+  -d) awk -F: -v OFS=: -v u="$2" -v g="$3" '$1 == g { n = split($4, m, ","); o = ""; for (i = 1; i <= n; i++) if (m[i] != u) o = (o == "" ? m[i] : o "," m[i]); $4 = o } { print }' "$f" > "$f.new" && mv "$f.new" "$f" ;;
+esac

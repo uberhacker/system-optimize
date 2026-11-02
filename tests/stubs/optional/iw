@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# iw stub: "iw dev IFACE get|set power_save [on|off]", the state in
+# STUB_STATE/iw-IFACE (default on).
+printf 'iw %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[ "${1:-}" = dev ] || exit 0
+f="${STUB_STATE:-/tmp}/iw-$2"
+case "$3 $4" in
+  "get power_save") echo "Power save: $(cat "$f" 2>/dev/null || echo on)" ;;
+  "set power_save") echo "$5" > "$f" ;;
+esac
+exit "${STUB_EXIT_iw:-0}"

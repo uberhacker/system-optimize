@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# usermod stub: -aG GROUP USER adds USER to GROUP in the sandbox's /etc/group.
+printf 'usermod %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+f="${SANDBOX:?}/etc/group"
+if [ "${1:-}" = -aG ]; then
+  awk -F: -v OFS=: -v u="$3" -v g="$2" '$1 == g { $4 = ($4 == "" ? u : $4 "," u) } { print }' "$f" > "$f.new" && mv "$f.new" "$f"
+fi

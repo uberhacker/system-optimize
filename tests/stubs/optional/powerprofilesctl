@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# powerprofilesctl stub: the profile lives in STUB_STATE/ppd (default
+# balanced); STUB_PPD_PROFILES lists the offered profiles.
+printf 'powerprofilesctl %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+f="${STUB_STATE:-/tmp}/ppd"
+cur=$(cat "$f" 2>/dev/null || echo balanced)
+case "${1:-get}" in
+  get) echo "$cur" ;;
+  list)
+    for p in ${STUB_PPD_PROFILES:-performance balanced power-saver}; do
+      if [ "$p" = "$cur" ]; then echo "* $p:"; else echo "  $p:"; fi
+      echo "    CpuDriver:	amd_pstate"
+      echo
+    done ;;
+  set) echo "$2" > "$f" ;;
+esac
+exit "${STUB_EXIT_powerprofilesctl:-0}"

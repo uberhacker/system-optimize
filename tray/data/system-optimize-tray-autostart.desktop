@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=system-optimize tray
+Comment=Panel indicator for system-optimize
+Exec=system-optimize-tray
+Icon=system-optimize-tray
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-after=panel

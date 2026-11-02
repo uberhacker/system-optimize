@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# rocminfo stub: one GPU agent named STUB_ROCMINFO_GFX (default gfx1151).
+printf 'rocminfo %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+cat <<OUT
+*******
+Agent 2
+*******
+  Name:                    ${STUB_ROCMINFO_GFX:-gfx1151}
+  Marketing Name:          AMD Radeon Graphics
+  Device Type:             GPU
+OUT

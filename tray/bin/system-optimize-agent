@@ -1,0 +1,15 @@
+#!/usr/bin/python3
+"""Launcher: finds the so_tray package next to the install, then runs the agent."""
+import os
+import sys
+
+for d in (os.environ.get("SO_TRAY_LIBDIR"),
+          os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."),
+          "/usr/share/system-optimize-tray", "/usr/local/share/system-optimize-tray"):
+    if d and os.path.isdir(os.path.join(d, "so_tray")):
+        sys.path.insert(0, os.path.abspath(d))
+        break
+
+from so_agent.main import main  # noqa: E402
+
+sys.exit(main())

@@ -1,0 +1,6 @@
+# shellcheck configuration for system-optimize
+shell=bash
+external-sources=true
+source-path=SCRIPTDIR
+source-path=SCRIPTDIR/..
+source-path=SCRIPTDIR/../..

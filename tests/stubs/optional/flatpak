@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# flatpak stub: STUB_STATE/flatpak-runtimes holds the system runtimes
+# ("REF<TAB>ORIGIN" lines), STUB_STATE/flatpak-unused the refs of them that
+# no application uses. `uninstall --unused` prints flatpak's table and asks;
+# with -y it removes them. `install ... REMOTE REF` adds a ref back.
+printf 'flatpak %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+rt="${STUB_STATE:-/tmp}/flatpak-runtimes"
+un="${STUB_STATE:-/tmp}/flatpak-unused"
+touch "$rt" "$un"
+case "${1:-}" in
+  list) cat "$rt" ;;
+  uninstall)
+    if [ ! -s "$un" ]; then echo "Nothing unused to uninstall"; exit 0; fi
+    yes=0
+    for a in "$@"; do [ "$a" = -y ] && yes=1; done
+    if [ "$yes" = 0 ]; then
+      printf '\n        ID                                   Branch          Op\n\n'
+      i=0
+      while IFS= read -r ref; do
+        i=$((i + 1))
+        IFS=/ read -r _ id arch branch <<< "$ref"
+        if [ "${STUB_FLATPAK_ARCH_COL:-0}" = 1 ]; then
+          printf ' %s.     %-36s %-8s %-15s r\n' "$i" "$id" "$arch" "$branch"
+        else
+          printf ' %s.     %-36s %-15s r\n' "$i" "$id" "$branch"
+        fi
+      done < "$un"
+      printf '\nProceed with these changes to the system installation? [Y/n]: '
+      read -r answer || answer=""
+      case "$answer" in y|Y|"") ;; *) echo; exit 1 ;; esac
+    fi
+    while IFS=$'\t' read -r r o; do
+      grep -qxF "$r" "$un" || printf '%s\t%s\n' "$r" "$o"
+    done < "$rt" > "$rt.new"
+    mv "$rt.new" "$rt"
+    : > "$un" ;;
+  install)
+    ref="${*: -1}"; remote="${*: -2:1}"
+    printf '%s\t%s\n' "$ref" "$remote" >> "$rt" ;;
+esac
+exit "${STUB_EXIT_flatpak:-0}"

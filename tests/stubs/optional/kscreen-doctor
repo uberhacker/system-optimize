@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# kscreen-doctor stub: outputs from STUB_STATE/kscreen, one per line:
+#   NAME|enabled|VRR|ID:WxH@RATE ID:WxH@RATE ...
+# VRR is Never, Always, Automatic or incapable; the current mode carries a
+# "*". -o prints Plasma 6's coloured text; output.NAME.vrrpolicy.VALUE and
+# output.NAME.mode.ID|WxH@RATE change the state.
+printf 'kscreen-doctor %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+f="${STUB_STATE:-/tmp}/kscreen"
+[ -f "$f" ] || exit 1
+esc=$'\033'
+n=0
+case "${1:-}" in
+  -o)
+    while IFS='|' read -r name en vrr modes; do
+      n=$((n + 1))
+      printf '%s[01;32mOutput: %s[0;0m%s %s\n' "$esc" "$esc" "$n" "$name"
+      printf '\t%s[01;32m%s%s[0;0m\n\tconnected\n\tpriority %s\n' "$esc" "$en" "$esc" "$n"
+      printf '\tModes: '
+      for m in $modes; do
+        id="${m%%:*}"; rest="${m#*:}"
+        printf ' %s:%s[01;32m%s%s[0;0m' "$id" "$esc" "$rest" "$esc"
+      done
+      printf '\n\tGeometry: 0,0 1920x1080\n\tScale: 1\n\tVrr: %s\n\tHDR: enabled\n' "$vrr"
+    done < "$f" ;;
+  output.*)
+    IFS=. read -r _ name what value <<< "$1"
+    tmp="$f.new"
+    while IFS='|' read -r n2 en vrr modes; do
+      if [ "$n2" = "$name" ]; then
+        case "$what" in
+          vrrpolicy) vrr="${value^}" ;;
+          mode)
+            new=""
+            for m in ${modes//\*/}; do
+              if [ "${m%%:*}" = "$value" ] || [ "${m#*:}" = "$value" ]; then m="$m*"; fi
+              new+="${new:+ }$m"
+            done
+            modes="$new" ;;
+        esac
+      fi
+      printf '%s|%s|%s|%s\n' "$n2" "$en" "$vrr" "$modes"
+    done < "$f" > "$tmp"
+    mv "$tmp" "$f" ;;
+esac
+exit "${STUB_EXIT_kscreen_doctor:-0}"

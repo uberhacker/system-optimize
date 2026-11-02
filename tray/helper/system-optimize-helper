@@ -1,0 +1,167 @@
+#!/usr/bin/python3 -I
+"""system-optimize-helper: the only part of the tray app that runs as root.
+
+pkexec starts it (polkit action io.github.bradvrudney.system-optimize.change)
+when the tray app or the GNOME extension asks for a change. It accepts a
+small fixed set of actions, checks every argument, finds the system-optimize
+command in a root-owned location and runs it with --yes. It reads no
+environment variables, no config and no files from the user.
+
+  system-optimize-helper apply-all             a normal run (every default step)
+  system-optimize-helper apply STEP[,STEP..]   --only STEPS
+  system-optimize-helper enable NAME[,NAME..]  --enable NAMES      (opt-in steps)
+  system-optimize-helper revert STEP[,STEP..]  --undo --only STEPS (turn steps off)
+  system-optimize-helper undo [ID]             --undo [ID]
+  system-optimize-helper profile NAME          --profile NAME
+  system-optimize-helper --safe ACTION ...     the same with --safe-apply (apply-all,
+                                               apply, enable, profile): roll back
+                                               on a benchmark regression
+
+Exit codes: those of system-optimize; 2 for a bad request; 126 when the
+command is missing or not safely owned by root.
+"""
+
+import os
+import re
+import stat
+import sys
+
+CANDIDATES = (
+    "/usr/local/bin/system-optimize",
+    "/usr/bin/system-optimize",
+    "/usr/local/sbin/system-optimize",
+    "/usr/sbin/system-optimize",
+)
+NAME_RE = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
+SNAPSHOT_RE = re.compile(r"^(\d{8}-\d{6}(-\d+)?|latest)$")
+MAX_NAMES = 32
+SAFE_ENV = {
+    "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "LC_ALL": "C",
+    "HOME": "/root",
+    "NO_COLOR": "1",
+    "TERM": "dumb",
+}
+
+
+class Refused(Exception):
+    pass
+
+
+def _names(word):
+    if not isinstance(word, str) or not word:
+        raise Refused("missing step name")
+    names = word.split(",")
+    if len(names) > MAX_NAMES:
+        raise Refused("too many names")
+    for n in names:
+        if not NAME_RE.match(n):
+            raise Refused("not a step name: %r" % n)
+    return ",".join(names)
+
+
+def build_args(argv):
+    """The system-optimize arguments for a helper request, or Refused."""
+    if not argv:
+        raise Refused("no action")
+    safe = argv[0] == "--safe"
+    if safe:
+        argv = argv[1:]
+        if not argv or argv[0] not in ("apply-all", "apply", "enable", "profile"):
+            raise Refused("--safe goes with apply-all, apply, enable or profile")
+    action, rest = argv[0], argv[1:]
+    base = ["--yes", "--no-color"] + (["--safe-apply"] if safe else [])
+    if action == "apply-all" and not rest:
+        return base
+    if action == "apply" and len(rest) == 1:
+        return base + ["--only", _names(rest[0])]
+    if action == "enable" and len(rest) == 1:
+        return base + ["--enable", _names(rest[0])]
+    if action == "revert" and len(rest) == 1:
+        return base + ["--undo", "--only", _names(rest[0])]
+    if action == "profile" and len(rest) == 1:
+        if "," in rest[0]:
+            raise Refused("expected one profile")
+        return base + ["--profile", _names(rest[0])]
+    if action == "undo" and len(rest) <= 1:
+        if rest:
+            if not SNAPSHOT_RE.match(rest[0]):
+                raise Refused("not a snapshot id: %r" % rest[0])
+            return base + ["--undo", rest[0]]
+        return base + ["--undo"]
+    raise Refused("unknown request: %s" % " ".join(argv[:3]))
+
+
+def _safe_node(st):
+    """Owned by root and not writable by group or others."""
+    return st.st_uid == 0 and not (st.st_mode & (stat.S_IWGRP | stat.S_IWOTH))
+
+
+def trusted(path, lstat=os.lstat, walk=os.walk):
+    """path (resolved) and every directory above it are root-owned and not
+    writable by others; for a tree install, so is everything in the tree
+    the program sources its modules from."""
+    real = os.path.realpath(path)
+    try:
+        st = lstat(real)
+    except OSError:
+        return False
+    if not stat.S_ISREG(st.st_mode) or not _safe_node(st):
+        return False
+    d = os.path.dirname(real)
+    while True:
+        try:
+            if not _safe_node(lstat(d)):
+                return False
+        except OSError:
+            return False
+        if d == "/":
+            break
+        d = os.path.dirname(d)
+    # bin/system-optimize next to lib/: a tree install; check the modules.
+    lib = os.path.join(os.path.dirname(os.path.dirname(real)), "lib")
+    if os.path.basename(os.path.dirname(real)) == "bin" and os.path.isdir(lib):
+        for top, dirs, files in walk(lib):
+            for name in dirs + files:
+                try:
+                    if not _safe_node(lstat(os.path.join(top, name))):
+                        return False
+                except OSError:
+                    return False
+    return True
+
+
+def find_cli(candidates=CANDIDATES, check=trusted):
+    for c in candidates:
+        if os.path.exists(c):
+            if check(c):
+                return os.path.realpath(c)
+            raise Refused("%s is not owned by root or is writable by others; not running it" % c)
+    return None
+
+
+def main(argv):
+    if os.geteuid() != 0:
+        print("system-optimize-helper: must run as root (through pkexec)", file=sys.stderr)
+        return 126
+    try:
+        args = build_args(argv)
+        cli = find_cli()
+    except Refused as exc:
+        print("system-optimize-helper: %s" % exc, file=sys.stderr)
+        return 2
+    if not cli:
+        print("system-optimize-helper: system-optimize is not installed", file=sys.stderr)
+        return 126
+    os.umask(0o022)
+    os.chdir("/")
+    try:
+        os.execve(cli, [cli] + args, SAFE_ENV)
+    except OSError as exc:
+        print("system-optimize-helper: cannot run %s: %s" % (cli, exc), file=sys.stderr)
+        return 126
+    return 126
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

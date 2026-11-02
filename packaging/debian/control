@@ -1,0 +1,42 @@
+Source: system-optimize-tray
+Section: admin
+Priority: optional
+Maintainer: Brad Vrudney <bradvrudney@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13), python3, desktop-file-utils
+Standards-Version: 4.7.0
+Homepage: https://github.com/bradvrudney/system-optimize
+Rules-Requires-Root: no
+
+Package: system-optimize-tray
+Architecture: all
+Depends: ${misc:Depends}, python3, polkitd | policykit-1, python3-pyqt6 | python3-pyside6.qtwidgets
+Recommends: system-optimize
+Description: tray app and dashboard for system-optimize
+ A system tray icon and dashboard for system-optimize: live CPU, memory,
+ temperature and disk readings, a switch per tuning step, benchmark results
+ against your baseline and each step's performance history. Changes go
+ through system-optimize itself, behind a polkit prompt, and can be undone.
+ .
+ On GNOME, install gnome-shell-extension-system-optimize for a native panel
+ menu; GNOME has no tray of its own.
+
+Package: gnome-shell-extension-system-optimize
+Architecture: all
+Depends: ${misc:Depends}, system-optimize-tray (= ${binary:Version}), gnome-shell (>= 45)
+Description: GNOME Shell panel menu for system-optimize
+ A native GNOME Shell panel menu for system-optimize: live readings, a switch
+ per tuning step grouped by category, quick actions and a link to the
+ dashboard. Enable it with:
+   gnome-extensions enable system-optimize@bradvrudney.github.io
+
+Package: system-optimize-agent
+Architecture: all
+Depends: ${misc:Depends}, system-optimize-tray (= ${binary:Version})
+Suggests: ollama
+Description: optional local-LLM tuning advisor for system-optimize
+ Runs a small local model (default qwen3:4b through Ollama, or any llama.cpp
+ server) on a schedule to look at system-optimize's status and benchmark
+ history and suggest one change at a time. It never applies anything by
+ itself: you approve each suggestion. Set it up per user with
+ /usr/share/system-optimize-tray/install-agent.sh. The 4B model needs about
+ 3-3.5 GB of RAM while it runs.

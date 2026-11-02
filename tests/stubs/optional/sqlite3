@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+# sqlite3 stub for machines without the sqlite3 shell: the subset of its
+# command line that system-optimize uses (-batch, -readonly, -separator,
+# -noheader, DB, SQL from the argument or stdin), on Python's sqlite3.
+import sqlite3, sys
+args = sys.argv[1:]
+sep, ro, db, sql = "|", False, None, None
+i = 0
+while i < len(args):
+    a = args[i]
+    if a == "-separator":
+        sep = args[i + 1]; i += 2; continue
+    if a == "-readonly":
+        ro = True
+    elif a.startswith("-"):
+        pass
+    elif db is None:
+        db = a
+    else:
+        sql = a
+    i += 1
+if sql is None:
+    sql = sys.stdin.read()
+try:
+    con = sqlite3.connect("file:%s?mode=ro" % db if ro else db, uri=ro, isolation_level=None)
+except sqlite3.Error as e:
+    print("Error: %s" % e, file=sys.stderr); sys.exit(1)
+buf = ""
+for line in sql.splitlines(True) or [sql]:
+    buf += line
+    while True:
+        # split on complete statements
+        idx = None
+        for j in range(len(buf)):
+            if buf[j] == ";" and sqlite3.complete_statement(buf[: j + 1]):
+                idx = j; break
+        if idx is None:
+            break
+        stmt, buf = buf[: idx + 1], buf[idx + 1 :]
+        try:
+            cur = con.execute(stmt)
+        except sqlite3.Error as e:
+            print("Error: %s" % e, file=sys.stderr); sys.exit(1)
+        for row in cur.fetchall():
+            print(sep.join("" if v is None else str(v) for v in row))
+if buf.strip():
+    try:
+        for row in con.execute(buf).fetchall():
+            print(sep.join("" if v is None else str(v) for v in row))
+    except sqlite3.Error as e:
+        print("Error: %s" % e, file=sys.stderr); sys.exit(1)

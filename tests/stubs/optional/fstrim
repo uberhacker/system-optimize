@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# fstrim stub: util-linux unless STUB_FSTRIM_BUSYBOX=1.
+printf 'fstrim %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+if [ "${1:-}" = --version ]; then
+  if [ "${STUB_FSTRIM_BUSYBOX:-0}" = 1 ]; then echo "BusyBox v1.36.1 multi-call binary." >&2; exit 1; fi
+  echo "fstrim from util-linux 2.40.2"
+fi

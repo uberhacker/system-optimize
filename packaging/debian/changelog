@@ -1,0 +1,5 @@
+system-optimize-tray (0.1.0) unstable; urgency=medium
+
+  * First package: tray app, GNOME Shell extension and optional tuning agent.
+
+ -- Brad Vrudney <bradvrudney@users.noreply.github.com>  Sun, 01 Nov 2026 12:00:00 +0000

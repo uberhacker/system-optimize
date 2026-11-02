@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# sysctl stub: log the call; "-p FILE" and "-w KEY=VALUE" write the values
+# into the sandbox's /proc/sys (SO_ROOT), as the kernel would.
+# STUB_EXIT_sysctl=N fails the call with N after writing.
+printf 'sysctl %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+set_key() {
+  local key="$1" value="$2" f
+  f="${SO_ROOT:-/nonexistent}/proc/sys/${key//.//}"
+  [ -e "$f" ] || return 0
+  printf '%s\n' "$value" > "$f"
+  # Like the kernel: a writeback *_bytes zeroes its *_ratio, and back.
+  case "$key" in
+    vm.dirty_bytes) [ "$value" != 0 ] && printf '0\n' > "${f%/*}/dirty_ratio" ;;
+    vm.dirty_ratio) [ "$value" != 0 ] && printf '0\n' > "${f%/*}/dirty_bytes" ;;
+    vm.dirty_background_bytes) [ "$value" != 0 ] && printf '0\n' > "${f%/*}/dirty_background_ratio" ;;
+    vm.dirty_background_ratio) [ "$value" != 0 ] && printf '0\n' > "${f%/*}/dirty_background_bytes" ;;
+  esac
+}
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p)
+      while IFS= read -r line; do
+        [[ "$line" =~ ^([a-z0-9_.-]+)[[:space:]]*=[[:space:]]*(.*)$ ]] || continue
+        set_key "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+      done < "$2"
+      shift ;;
+    -w) shift; set_key "${1%%=*}" "${1#*=}" ;;
+    -e|-q) ;;
+  esac
+  shift
+done
+exit "${STUB_EXIT_sysctl:-0}"

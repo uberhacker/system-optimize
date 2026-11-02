@@ -1,0 +1,8 @@
+{
+  "uuid": "system-optimize@bradvrudney.github.io",
+  "name": "system-optimize",
+  "description": "Live CPU, memory, temperature and power readout, and on/off switches for the system-optimize tuning steps. Changes go through system-optimize and ask for your password with polkit.",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"],
+  "url": "https://github.com/bradvrudney/system-optimize",
+  "version-name": "0.1.0"
+}

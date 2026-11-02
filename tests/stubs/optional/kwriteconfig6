@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# kwriteconfig6 stub: values live in STUB_STATE/kconfig/FILE GROUP KEY.
+printf '%s %s\n' "$(basename "$0")" "$*" >> "${STUB_LOG:-/dev/null}"
+d="${STUB_STATE:-/tmp}/kconfig"; mkdir -p "$d"
+file="" group="" key="" del=0 value=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --file) file="$2"; shift ;;
+    --group) group="$2"; shift ;;
+    --key) key="$2"; shift ;;
+    --delete) del=1 ;;
+    --type) shift ;;
+    *) value="$1" ;;
+  esac
+  shift
+done
+if [ "$del" = 1 ]; then rm -f "$d/$file $group $key"; else printf '%s\n' "$value" > "$d/$file $group $key"; fi
+exit "${STUB_EXIT_kwriteconfig6:-0}"

@@ -1,0 +1,20 @@
+.so-panel-label { padding-left: 4px; font-feature-settings: "tnum"; }
+.so-output-dialog { max-width: 900px; }
+.so-output-title { font-weight: bold; padding-bottom: 8px; }
+.so-output-scroll { min-width: 640px; min-height: 360px; max-height: 600px; }
+.so-output-text { font-family: monospace; font-size: 10pt; }
+
+/* THEME=light / THEME=dark in ~/.config/system-optimize/tray.conf; with
+   THEME=system nothing is added and the Shell's own colours apply. */
+.so-theme-dark { background-color: #1f232a; color: #e8eaed; }
+.so-theme-dark .popup-menu-item { color: #e8eaed; }
+.so-theme-dark .popup-sub-menu { background-color: #16181d; }
+.so-theme-light { background-color: #ffffff; color: #1c1f24; }
+.so-theme-light .popup-menu-item { color: #1c1f24; }
+.so-theme-light .popup-sub-menu { background-color: #f6f7f9; }
+.so-theme-light .popup-separator-menu-item-separator { background-color: #dde1e6; }
+
+/* conflict warnings and pressure alerts: amber, after the theme rules so they win */
+.popup-menu-item.so-warning,
+.so-theme-dark .popup-menu-item.so-warning,
+.so-theme-light .popup-menu-item.so-warning { color: #c88800; }

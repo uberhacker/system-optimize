@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# gsettings stub: each key's value lives in STUB_STATE/gsettings/SCHEMA KEY
+# (a key without a file does not exist). Tests set one with gs_put.
+printf 'gsettings %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+d="${STUB_STATE:-/tmp}/gsettings"
+case "${1:-}" in
+  get) [ -f "$d/$2 $3" ] || { echo "No such key “$3”" >&2; exit 1; }; cat "$d/$2 $3" ;;
+  set) [ -f "$d/$2 $3" ] || { echo "No such key “$3”" >&2; exit 1; }; printf '%s\n' "$4" > "$d/$2 $3" ;;
+  reset) rm -f "$d/$2 $3" ;;
+esac
+exit "${STUB_EXIT_gsettings:-0}"

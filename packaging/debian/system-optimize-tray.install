@@ -1,0 +1,10 @@
+usr/bin/system-optimize-tray
+usr/bin/system-optimize-tray-backend
+usr/share/system-optimize-tray/so_tray
+usr/share/system-optimize-tray/credits.json
+usr/libexec/system-optimize/system-optimize-helper
+usr/share/polkit-1/actions/io.github.bradvrudney.system-optimize.policy
+usr/share/applications/io.github.bradvrudney.SystemOptimizeTray.desktop
+etc/xdg/autostart/system-optimize-tray-autostart.desktop
+usr/share/icons/hicolor/scalable/apps/system-optimize-tray.svg
+usr/share/icons/hicolor/symbolic/apps/system-optimize-tray-symbolic.svg

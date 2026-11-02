@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# sv stub (runit): "status NAME" says run: when NAME is in STUB_ACTIVE.
+printf 'sv %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+case "${1:-}" in
+  status) if [[ " ${STUB_ACTIVE:-} " == *" $2 "* ]]; then echo "run: $2: (pid 1) 5s"; else echo "down: $2: 5s"; fi ;;
+esac
+exit 0

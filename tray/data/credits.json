@@ -1,0 +1,391 @@
+{
+ "_comment": "The one list of open-source projects that system-optimize and its tray app use, integrate or build on. The About screen is generated from it; tests/test_credits.py checks it against docs/tools.md.",
+ "projects": [
+  {
+   "name": "system-optimize (original)",
+   "by": "Ed Reel",
+   "license": "GPL-3.0",
+   "url": "https://github.com/uberhacker/system-optimize",
+   "role": "The original script this tool grew from",
+   "group": "origin"
+  },
+  {
+   "name": "tuned",
+   "license": "GPL-2.0-or-later",
+   "url": "https://github.com/redhat-performance/tuned",
+   "role": "Tuning daemon and profiles; tuned-ppd provides power profiles on Fedora",
+   "group": "integrates",
+   "aliases": [
+    "tuned-ppd"
+   ]
+  },
+  {
+   "name": "power-profiles-daemon",
+   "license": "GPL-3.0-or-later",
+   "url": "https://gitlab.freedesktop.org/upower/power-profiles-daemon",
+   "role": "Power profile switching on many desktops",
+   "group": "integrates"
+  },
+  {
+   "name": "systemd",
+   "license": "LGPL-2.1-or-later",
+   "url": "https://github.com/systemd/systemd",
+   "role": "systemd-oomd, timers, sysctl.d and user services",
+   "group": "integrates",
+   "aliases": [
+    "systemd-oomd"
+   ]
+  },
+  {
+   "name": "zram-generator",
+   "license": "MIT",
+   "url": "https://github.com/systemd/zram-generator",
+   "role": "Compressed RAM swap",
+   "group": "integrates"
+  },
+  {
+   "name": "earlyoom",
+   "license": "MIT",
+   "url": "https://github.com/rfjakob/earlyoom",
+   "role": "Early out-of-memory handling where systemd-oomd is not used",
+   "group": "integrates"
+  },
+  {
+   "name": "nohang",
+   "license": "MIT",
+   "url": "https://github.com/hakavlad/nohang",
+   "role": "Alternative low-memory handler",
+   "group": "integrates"
+  },
+  {
+   "name": "irqbalance",
+   "license": "GPL-2.0-only",
+   "url": "https://github.com/Irqbalance/irqbalance",
+   "role": "Spreads interrupts across CPU cores",
+   "group": "integrates"
+  },
+  {
+   "name": "util-linux",
+   "license": "GPL-2.0-or-later",
+   "url": "https://github.com/util-linux/util-linux",
+   "role": "fstrim and fstrim.timer for SSD trim",
+   "group": "integrates",
+   "aliases": [
+    "fstrim",
+    "fstrim.timer"
+   ]
+  },
+  {
+   "name": "TLP",
+   "license": "GPL-2.0-or-later",
+   "url": "https://github.com/linrunner/TLP",
+   "role": "Detected so its settings are not fought over",
+   "group": "integrates"
+  },
+  {
+   "name": "auto-cpufreq",
+   "license": "LGPL-3.0",
+   "url": "https://github.com/AdnanHodzic/auto-cpufreq",
+   "role": "Detected so its settings are not fought over",
+   "group": "integrates"
+  },
+  {
+   "name": "thermald",
+   "license": "GPL-2.0-only",
+   "url": "https://github.com/intel/thermal_daemon",
+   "role": "Thermal management on Intel machines",
+   "group": "integrates"
+  },
+  {
+   "name": "sysbench",
+   "license": "GPL-2.0-or-later",
+   "url": "https://github.com/akopytov/sysbench",
+   "role": "CPU and memory benchmarks",
+   "group": "integrates"
+  },
+  {
+   "name": "fio",
+   "license": "GPL-2.0-only",
+   "url": "https://github.com/axboe/fio",
+   "role": "Disk benchmarks",
+   "group": "integrates"
+  },
+  {
+   "name": "stress-ng",
+   "license": "GPL-2.0-or-later",
+   "url": "https://github.com/ColinIanKing/stress-ng",
+   "role": "Benchmark fallback",
+   "group": "integrates"
+  },
+  {
+   "name": "ananicy-cpp",
+   "license": "GPL-3.0-only",
+   "url": "https://gitlab.com/ananicy-cpp/ananicy-cpp",
+   "role": "Process priorities for responsiveness",
+   "group": "integrates"
+  },
+  {
+   "name": "GameMode",
+   "license": "BSD-3-Clause",
+   "url": "https://github.com/FeralInteractive/gamemode",
+   "role": "On-demand performance mode for games",
+   "group": "integrates"
+  },
+  {
+   "name": "uresourced",
+   "license": "LGPL-2.1-or-later",
+   "url": "https://gitlab.freedesktop.org/benzea/uresourced",
+   "role": "Gives the active desktop user's session more CPU, memory and I/O weight",
+   "group": "integrates"
+  },
+  {
+   "name": "profile-sync-daemon",
+   "license": "MIT",
+   "url": "https://github.com/graysky2/profile-sync-daemon",
+   "role": "Browser profiles in RAM",
+   "group": "integrates"
+  },
+  {
+   "name": "plocate",
+   "license": "GPL-2.0-or-later",
+   "url": "https://plocate.sesse.net/",
+   "role": "Fast file name search",
+   "group": "integrates"
+  },
+  {
+   "name": "polkit",
+   "license": "LGPL-2.0-or-later",
+   "url": "https://github.com/polkit-org/polkit",
+   "role": "Asks for your password before the tray changes anything",
+   "group": "tray"
+  },
+  {
+   "name": "Qt",
+   "license": "LGPL-3.0-only",
+   "url": "https://www.qt.io/",
+   "role": "The tray app's interface",
+   "group": "tray"
+  },
+  {
+   "name": "Qt for Python (PySide6)",
+   "license": "LGPL-3.0-only",
+   "url": "https://wiki.qt.io/Qt_for_Python",
+   "role": "Python bindings for Qt",
+   "group": "tray"
+  },
+  {
+   "name": "PyQt6",
+   "license": "GPL-3.0-only",
+   "url": "https://www.riverbankcomputing.com/software/pyqt/",
+   "role": "Alternative Qt bindings, used when PySide6 is absent",
+   "group": "tray"
+  },
+  {
+   "name": "GNOME Shell",
+   "license": "GPL-2.0-or-later",
+   "url": "https://gitlab.gnome.org/GNOME/gnome-shell",
+   "role": "The panel extension runs inside it",
+   "group": "tray"
+  },
+  {
+   "name": "libnotify",
+   "license": "LGPL-2.1-or-later",
+   "url": "https://gitlab.gnome.org/GNOME/libnotify",
+   "role": "Desktop notifications for agent suggestions",
+   "group": "tray"
+  },
+  {
+   "name": "Python",
+   "license": "PSF-2.0",
+   "url": "https://www.python.org/",
+   "role": "The tray app, its backend and the agent",
+   "group": "tray"
+  },
+  {
+   "name": "SQLite",
+   "license": "Public domain",
+   "url": "https://www.sqlite.org/",
+   "role": "Benchmark and resource history",
+   "group": "tray"
+  },
+  {
+   "name": "Ollama",
+   "license": "MIT",
+   "url": "https://github.com/ollama/ollama",
+   "role": "Runs the agent's local model",
+   "group": "agent"
+  },
+  {
+   "name": "llama.cpp",
+   "license": "MIT",
+   "url": "https://github.com/ggml-org/llama.cpp",
+   "role": "Local model server for the agent, and llama-bench for the tokens/s benchmark",
+   "group": "agent",
+   "aliases": [
+    "llama-bench"
+   ]
+  },
+  {
+   "name": "Qwen3",
+   "by": "Qwen team, Alibaba Cloud",
+   "license": "Apache-2.0",
+   "url": "https://github.com/QwenLM/Qwen3",
+   "role": "The agent's default model (qwen3:4b)",
+   "group": "agent"
+  },
+  {
+   "name": "bats-core",
+   "license": "MIT",
+   "url": "https://github.com/bats-core/bats-core",
+   "role": "Shell test framework",
+   "group": "development"
+  },
+  {
+   "name": "ShellCheck",
+   "license": "GPL-3.0-or-later",
+   "url": "https://github.com/koalaman/shellcheck",
+   "role": "Shell linting",
+   "group": "development"
+  },
+  {
+   "name": "amd-debug-tools",
+   "license": "MIT",
+   "url": "https://git.kernel.org/pub/scm/linux/kernel/git/superm1/amd-debug-tools.git",
+   "role": "amd-ttm sets how much system RAM an AMD integrated GPU may map, for local models",
+   "group": "integrates",
+   "aliases": [
+    "amd-ttm"
+   ]
+  },
+  {
+   "name": "LACT",
+   "license": "MIT",
+   "url": "https://github.com/ilya-zlobintsev/LACT",
+   "role": "AMD GPU power, clocks and fans; system-optimize leaves the GPU to it when lactd runs",
+   "group": "integrates",
+   "aliases": [
+    "lactd"
+   ]
+  },
+  {
+   "name": "sched-ext/scx",
+   "license": "GPL-2.0",
+   "url": "https://github.com/sched-ext/scx",
+   "role": "sched_ext CPU schedulers written in BPF",
+   "group": "integrates",
+   "aliases": [
+    "scx",
+    "sched_ext",
+    "sched-ext"
+   ]
+  },
+  {
+   "name": "scx-loader",
+   "license": "GPL-2.0",
+   "url": "https://github.com/sched-ext/scx-loader",
+   "role": "Starts and switches sched_ext schedulers",
+   "group": "integrates",
+   "aliases": [
+    "scx_loader"
+   ]
+  },
+  {
+   "name": "bpftune",
+   "license": "GPL-2.0 WITH Linux-syscall-note",
+   "url": "https://github.com/oracle/bpftune",
+   "role": "Tunes network buffers from live traffic; the sysctl step leaves its keys alone",
+   "group": "integrates"
+  },
+  {
+   "name": "btrfsd",
+   "license": "LGPL-2.1",
+   "url": "https://github.com/ximion/btrfsd",
+   "role": "Btrfs scrubs on AC power and when errors show",
+   "group": "integrates"
+  },
+  {
+   "name": "btrfsmaintenance",
+   "license": "GPL-2.0",
+   "url": "https://github.com/kdave/btrfsmaintenance",
+   "role": "Scheduled Btrfs scrub, balance and trim scripts",
+   "group": "integrates"
+  },
+  {
+   "name": "Linux kernel",
+   "license": "GPL-2.0",
+   "url": "https://www.kernel.org",
+   "role": "MGLRU, transparent hugepages, pressure stall information and amd-pstate",
+   "group": "integrates",
+   "aliases": [
+    "MGLRU",
+    "THP",
+    "PSI",
+    "amd-pstate",
+    "platform_profile"
+   ]
+  },
+  {
+   "name": "amdgpu_top",
+   "license": "MIT",
+   "url": "https://github.com/Umio-Yasuno/amdgpu_top",
+   "role": "VRAM and shared GPU memory (GTT) readings, per process",
+   "group": "monitoring"
+  },
+  {
+   "name": "Performance Co-Pilot",
+   "license": "GPL-2.0-or-later AND LGPL-2.1-or-later AND CC-BY-3.0",
+   "url": "https://github.com/performancecopilot/pcp",
+   "role": "Long-term resource history when it is installed",
+   "group": "monitoring",
+   "aliases": [
+    "PCP",
+    "pcp2json"
+   ]
+  },
+  {
+   "name": "psi-notify",
+   "license": "MIT",
+   "url": "https://github.com/cdown/psi-notify",
+   "role": "The pressure thresholds the tray's alerts use",
+   "group": "monitoring"
+  },
+  {
+   "name": "nvtop",
+   "license": "GPL-3.0-or-later",
+   "url": "https://github.com/Syllo/nvtop",
+   "role": "GPU monitor; counts VRAM and GTT on APUs",
+   "group": "recommends"
+  },
+  {
+   "name": "btop",
+   "license": "Apache-2.0",
+   "url": "https://github.com/aristocratos/btop",
+   "role": "Terminal resource monitor",
+   "group": "recommends"
+  },
+  {
+   "name": "below",
+   "license": "Apache-2.0",
+   "url": "https://github.com/facebookincubator/below",
+   "role": "Records cgroup, process and pressure history",
+   "group": "recommends"
+  },
+  {
+   "name": "hyperfine",
+   "license": "MIT OR Apache-2.0",
+   "url": "https://github.com/sharkdp/hyperfine",
+   "role": "Command benchmarking",
+   "group": "recommends"
+  },
+  {
+   "name": "CachyOS-Settings",
+   "license": "GPL-3.0",
+   "url": "https://github.com/CachyOS/CachyOS-Settings",
+   "role": "Tuned defaults and the sched_ext and ananicy-cpp findings",
+   "group": "ideas",
+   "aliases": [
+    "CachyOS"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,168 @@
+# system-optimize configuration
+#
+# Copy to ${XDG_CONFIG_HOME:-~/.config}/system-optimize/config (per user) or
+# /etc/system-optimize.conf (system wide; the one sudo runs read unless the
+# user's file is passed with --config). Simple KEY=value lines; the file is
+# parsed, never sourced, so no shell syntax is interpreted. Quotes around a
+# value are optional. Unknown keys and invalid values are ignored with a
+# warning. Environment variables with the same names override the files;
+# command line flags override everything. Every key is shown below with its
+# default, commented out.
+
+# --- Which steps run ---------------------------------------------------------
+# The steps are listed by `system-optimize steps` and described in
+# docs/steps.md. Lists are comma separated.
+
+# Run only these steps, opt-in ones too (also: apply STEP..., --only, -o).
+#ONLY=
+
+# Leave these steps out (also: --skip, -x). Example: SKIP=cpu,limits
+#SKIP=
+
+# Opt-in steps to run on every run (also: --enable, -e). The installer
+# writes this. Example: ENABLE=mglru,thp,journal
+#ENABLE=
+
+# A profile's opt-in steps on every run: dev, gaming, battery or llm
+# (also: profile NAME, --profile, -p). Empty: none.
+#PROFILE=
+
+# --- Helpers -----------------------------------------------------------------
+
+# Install and enable the recommended helpers that are missing (earlyoom or
+# systemd-oomd, irqbalance, zram-generator); on Fedora also lets the
+# scheduler step add the sched_ext COPR. Also --install-tools.
+#INSTALL_TOOLS=0
+
+# Run even where a pre-flight check says no (inside a container). Also --force.
+#FORCE=0
+
+# --- Settings of the steps ---------------------------------------------------
+
+# Where the sysctl step puts kernel settings: auto, files (/etc/sysctl.d) or
+# tuned (a tuned profile). See docs/steps.md. Also --backend.
+#BACKEND=auto
+
+# mglru: MGLRU min_ttl_ms in milliseconds (the step warns above 3000).
+#MGLRU_TTL_MS=1000
+
+# thp: transparent huge pages mode: madvise, always, never, or keep (leave
+# the mode alone and set only the defrag).
+#THP_MODE=madvise
+
+# noatime: the option added to local mounts: noatime or lazytime.
+#ATIME=noatime
+
+# journal: the most disk space the systemd journal may use (K, M or G).
+#JOURNAL_MAX=500M
+
+# charge: stop charging the battery at this percent (50 to 100).
+#CHARGE_LIMIT=80
+
+# gpu-memory: GiB of RAM an AMD APU's GPU may map; 0 means 75 % of RAM.
+# Setting it on the command line (--gpu-memory GIB) also turns the step on.
+#GPU_MEM_GIB=0
+
+# fonts: hinting (none, slight, medium, full) and subpixel order (none, rgb,
+# bgr, vrgb, vbgr; none for OLED and rotated screens).
+#FONT_HINTING=slight
+#FONT_SUBPIXEL=rgb
+
+# pkgmgr: parallel package downloads (1 to 20).
+#PARALLEL_DOWNLOADS=10
+
+# scheduler: the sched_ext scheduler: auto (bpfland on desktops, lavd on
+# battery-powered machines), bpfland, lavd, flash, cosmos or rusty.
+# --scheduler NAME also turns the step on.
+#SCHEDULER=auto
+
+# --- Benchmark, tune and safe apply ------------------------------------------
+
+# Measure CPU, memory and disk before and after every run (also --benchmark,
+# -b). Needs sysbench (or stress-ng) and fio.
+#BENCHMARK=0
+
+# Seconds each benchmark test runs.
+#BENCH_SECONDS=5
+
+# A change smaller than this percent counts as the same speed.
+#BENCH_THRESHOLD=3
+
+# A GGUF model file: with llama-bench installed, the benchmark also measures
+# prompt processing and generation in tokens/s (absolute path). Empty: off.
+#BENCH_LLM_MODEL=
+
+# Record a Performance Co-Pilot metrics window with each benchmark when pmcd
+# runs and pcp2json is installed.
+#BENCH_PCP=1
+
+# The steps `tune` tries one at a time, keeping each only if it measures
+# faster.
+#TUNE_STEPS=sysctl,io,cpu,noatime,btrfs,thp,mglru,scheduler
+
+# Undo a run by itself unless `confirm` comes within SAFE_APPLY_TIMEOUT
+# seconds, and at once when the benchmark shows it slower (also
+# --safe-apply, -s).
+#SAFE_APPLY=0
+#SAFE_APPLY_TIMEOUT=300
+
+# --- History and snapshots ---------------------------------------------------
+
+# Keep the history of changes and benchmarks (readable without root).
+#HISTORY=1
+
+# Where the history goes (absolute path). Empty: /var/lib/system-optimize/history
+# for root, ${XDG_STATE_HOME:-~/.local/state}/system-optimize/history otherwise.
+#HISTORY_DIR=
+
+# Prune history rows older than this many days (0 keeps all). Changes not
+# undone yet are kept.
+#HISTORY_KEEP_DAYS=180
+
+# Where snapshots for undo are kept (absolute path).
+# Empty: /var/lib/system-optimize/snapshots.
+#SNAPSHOT_DIR=
+
+# --- Timeouts ----------------------------------------------------------------
+
+# Seconds a command may take before it is killed: sysctl, udevadm,
+# systemctl, powerprofilesctl (also --timeout).
+#TIMEOUT=300
+
+# Seconds a package install or removal may take.
+#PKG_TIMEOUT=1800
+
+# Seconds a download may take (self-update).
+#DOWNLOAD_TIMEOUT=300
+
+# --- Self-update -------------------------------------------------------------
+
+# Where self-update pulls this program from (https:// only). A git checkout
+# with nothing configured follows the remote it was cloned from; a tree or
+# single-file installation uses this repository. Set it to follow a fork.
+#SELF_UPDATE_REPO=https://github.com/uberhacker/system-optimize
+
+# Branch for self-update of a git checkout or a tree installation. Empty
+# follows the checkout's current branch if the remote has it, otherwise the
+# remote's default branch. A single-file installation follows the GitHub
+# releases instead and ignores this.
+#SELF_UPDATE_BRANCH=
+
+# --- Output and logs ---------------------------------------------------------
+
+# Colour output: auto (TTY only, honours NO_COLOR), always, never.
+#COLOR=auto
+
+# Write a log file for every run (also --no-log / --log FILE). The log has a
+# header describing the run and the machine, every message including the
+# ones --quiet hides and the verbose-only commands, and each command's full
+# output, exit status and duration, with timestamps and without colours.
+# Files are 0600 in a 0700 directory.
+#LOGGING=1
+
+# Where logs go (absolute path). Empty: /var/log/system-optimize when run as
+# root, ${XDG_STATE_HOME:-~/.local/state}/system-optimize otherwise.
+#LOG_DIR=
+
+# How many logs to keep in LOG_DIR; older ones are deleted. 0 keeps all.
+#LOG_KEEP=20

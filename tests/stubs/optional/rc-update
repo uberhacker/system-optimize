@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# rc-update stub (OpenRC): add/del NAME RUNLEVEL link the sandbox's runlevel.
+printf 'rc-update %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+d="${SANDBOX:?}/etc/runlevels/${3:-default}"
+case "${1:-}" in
+  add) mkdir -p "$d" && ln -sfn "/etc/init.d/$2" "$d/$2" ;;
+  del) rm -f "$d/$2" ;;
+esac

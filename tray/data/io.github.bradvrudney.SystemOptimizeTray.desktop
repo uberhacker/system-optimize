@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=system-optimize
+GenericName=System tuning
+Comment=Watch CPU, memory and temperatures and turn system-optimize steps on and off
+Exec=system-optimize-tray
+Icon=system-optimize-tray
+Terminal=false
+Categories=System;Monitor;Settings;
+Keywords=performance;tuning;power;temperature;
+StartupNotify=false

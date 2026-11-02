@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# runuser stub: log, then run the command after "--" as the current user.
+printf 'runuser %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+while [ $# -gt 0 ] && [ "$1" != -- ]; do shift; done
+shift
+exec "$@"

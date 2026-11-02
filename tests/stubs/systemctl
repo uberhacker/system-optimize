@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# systemctl stub: log the call and answer from the environment.
+#   STUB_UNITS    units that exist (list-unit-files)
+#   STUB_ACTIVE   units that are running (is-active)
+#   is-enabled    STUB_STATE/enabled-UNIT holds the state (default disabled);
+#                 enable/disable/mask --now update it
+#   STUB_FAIL_ACTION  an action (enable, start, ...) that fails with 1
+printf 'systemctl %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+args=()
+for a in "$@"; do
+  case "$a" in --quiet|--now|--no-legend|--no-pager) ;; *) args+=("$a") ;; esac
+done
+[ -n "${STUB_FAIL_ACTION:-}" ] && [ "${args[0]:-}" = "$STUB_FAIL_ACTION" ] && exit 1
+state_file() { printf '%s/enabled-%s\n' "${STUB_STATE:-/tmp}" "$1"; }
+case "${args[0]:-}" in
+  is-active) [[ " ${STUB_ACTIVE:-} " == *" ${args[1]} "* ]] ;;
+  is-enabled)
+    if [[ " ${STUB_UNITS:-} " != *" ${args[1]} "* ]]; then exit 1; fi
+    s=$(cat "$(state_file "${args[1]}")" 2>/dev/null || echo disabled)
+    echo "$s"
+    [ "$s" = enabled ] ;;
+  list-unit-files)
+    if [[ " ${STUB_UNITS:-} " == *" ${args[1]} "* ]]; then
+      printf '%s %s\n' "${args[1]}" "$(cat "$(state_file "${args[1]}")" 2>/dev/null || echo disabled)"
+    fi ;;
+  enable) echo enabled > "$(state_file "${args[1]}")" ;;
+  disable) echo disabled > "$(state_file "${args[1]}")" ;;
+  mask) echo masked > "$(state_file "${args[1]}")" ;;
+  *) ;;
+esac
+status=$?
+[ "${STUB_EXIT_systemctl:-0}" = 0 ] || exit "$STUB_EXIT_systemctl"
+exit "$status"
