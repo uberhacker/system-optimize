@@ -129,13 +129,16 @@ if ! command -v ollama >/dev/null 2>&1; then
     fi
     confirm "Install Ollama with: ${pkg[*]}?" || exit 1
     run "${pkg[@]}"
-    if command -v systemctl >/dev/null 2>&1 && systemctl cat ollama.service >/dev/null 2>&1; then
+    if [ -d /run/systemd/system ] && systemctl cat ollama.service >/dev/null 2>&1; then
         run sudo systemctl enable --now ollama.service
     fi
 fi
 
 if [ "$DRY" != 1 ] && ! ollama list >/dev/null 2>&1; then
-    die "Ollama is installed but not running. Start it (sudo systemctl enable --now ollama) and run this again."
+    if [ -d /run/systemd/system ]; then
+        die "Ollama is installed but not running. Start it (sudo systemctl enable --now ollama) and run this again."
+    fi
+    die "Ollama is installed but not running. Start it (ollama serve, or your init system's ollama service) and run this again."
 fi
 
 # Settings first, so check and the tray show the right model.

@@ -35,6 +35,22 @@ init_runit() {
   with_stub sv xbps-query xbps-install xbps-remove
 }
 
+# init_sysv: MX Linux as Ed has it: SysV init as PID 1 (its /run/initctl),
+# systemd's tools installed beside it (the systemctl stub), and earlyoom and
+# irqbalance with /etc/init.d scripts.
+init_sysv() {
+  rm -rf "$SANDBOX/run/systemd"
+  mkfifo "$SANDBOX/run/initctl"
+  mkdir -p "$SANDBOX/etc/init.d"
+  local s
+  for s in earlyoom irqbalance; do
+    printf '#!/bin/sh\n' > "$SANDBOX/etc/init.d/$s"
+    chmod +x "$SANDBOX/etc/init.d/$s"
+  done
+  with_stub update-rc.d invoke-rc.d service
+  ln -sfn "$STUBS/optional/pkgquery" "$BATS_TEST_TMPDIR/optional/dpkg-query"
+}
+
 @test "os_pkg_from_ids: system-update's mapping" {
   load_so
   local pair
@@ -100,6 +116,103 @@ EOF
   [ "$SO_INIT_SYSTEM" = openrc ]
   SO_INIT=bogus init_scan
   [ "$SO_INIT_SYSTEM" = none ]
+}
+
+@test "init_scan: SysV init by its /run/initctl, or PID 1 named init with an inittab; never in a container" {
+  load_so
+  rm -rf "$SANDBOX/run/systemd"
+  mkfifo "$SANDBOX/run/initctl"
+  init_scan
+  [ "$SO_INIT_SYSTEM" = sysvinit ] && [ "$SO_HAS_SYSTEMD" = 0 ]
+  [ "$(init_label)" = "SysV init" ]
+  rm "$SANDBOX/run/initctl"
+  mkdir -p "$SANDBOX/proc/1"
+  echo init > "$SANDBOX/proc/1/comm"
+  : > "$SANDBOX/etc/inittab"
+  init_scan
+  [ "$SO_INIT_SYSTEM" = sysvinit ]
+  echo bash > "$SANDBOX/proc/1/comm"     # a container: its shell is PID 1
+  init_scan
+  [ "$SO_INIT_SYSTEM" = none ]
+  [ "$(init_label)" = "no init system (a container?)" ]
+}
+
+@test "MX Linux/SysV init: --status says systemctl is installed but systemd is not running" {
+  unset SO_PKG
+  os_release debian "" "MX 23.4 (Debian 12)"
+  init_sysv
+  run "$SO" --status
+  [ "$status" -eq 0 ]
+  assert_output_contains "sysvinit (systemctl is installed, but systemd is not running: systemd-only steps and packages are left out)"
+}
+
+@test "MX Linux/SysV init: --install-tools uses apt and update-rc.d; --undo reverses both" {
+  unset SO_PKG
+  os_release debian "" "MX 23.4 (Debian 12)"
+  init_sysv
+  run env STUB_ACTIVE="" "$SO" -y --only tools --install-tools
+  [ "$status" -eq 0 ]
+  assert_output_contains "set up: earlyoom, irqbalance"
+  assert_called "apt-get install -y earlyoom"
+  assert_called "update-rc.d earlyoom defaults"
+  assert_called "invoke-rc.d earlyoom start"
+  [ -L "$SANDBOX/etc/rc2.d/S01earlyoom" ]
+  assert_not_called "systemctl enable"
+  grep -q $'^svc\tsysvinit:earlyoom\tdisabled\t' "$(snapshots | tail -n1)/manifest"
+  : > "$STUB_LOG"
+  run "$SO" --undo -y
+  [ "$status" -eq 0 ]
+  assert_called "invoke-rc.d earlyoom stop"
+  assert_called "update-rc.d -f earlyoom remove"
+  assert_called "apt-get remove -y earlyoom"
+  [ ! -e "$SANDBOX/etc/rc2.d/S01earlyoom" ]
+}
+
+@test "svc_enabled_state and svc_active under SysV init" {
+  load_so
+  init_sysv
+  init_scan
+  [ "$(svc_enabled_state earlyoom)" = disabled ]
+  [ "$(svc_enabled_state nosuch)" = absent ]
+  mkdir -p "$SANDBOX/etc/rc3.d"
+  ln -s ../init.d/earlyoom "$SANDBOX/etc/rc3.d/S02earlyoom"
+  [ "$(svc_enabled_state earlyoom)" = enabled ]
+  STUB_ACTIVE="earlyoom" svc_active earlyoom
+  ! STUB_ACTIVE="" svc_active earlyoom
+}
+
+@test "pkg_install: a systemd-only package is refused without systemd, with the reason" {
+  load_so
+  init_sysv
+  init_scan
+  SO_PKG_MANAGER=apt
+  run_fn pkg_install pcp
+  [ "$status" -eq 1 ]
+  assert_output_contains "pcp: not installed; it needs systemd and this system runs SysV init (systemctl is installed, but systemd is not running)"
+  assert_not_called "apt-get"
+  SO_INIT=systemd init_scan
+  run_fn pkg_install pcp
+  [ "$status" -eq 0 ]
+  assert_called "apt-get install -y pcp"
+}
+
+@test "pkg_install: apt stops with the package dpkg left half set up, instead of failing on it" {
+  load_so
+  SO_PKG_MANAGER=apt
+  STUB_DPKG_AUDIT="pcp" run_fn pkg_install gamemode
+  [ "$status" -eq 1 ]
+  assert_output_contains "gamemode: not installed; dpkg has packages left half set up (pcp). Fix those first (sudo dpkg --configure -a, or remove them)"
+  assert_not_called "apt-get install"
+  STUB_DPKG_AUDIT="" run_fn pkg_install gamemode
+  [ "$status" -eq 0 ]
+  assert_called "apt-get install -y gamemode"
+}
+
+@test "journal under SysV init: skipped, naming the init and the syslog daemon" {
+  init_sysv
+  run "$SO" -y --only journal
+  [ "$status" -eq 0 ]
+  assert_output_contains "no systemd journal: this system runs SysV init (systemctl is installed, but systemd is not running), so logs go to its syslog daemon"
 }
 
 @test "--status names the distribution, package manager and init system" {

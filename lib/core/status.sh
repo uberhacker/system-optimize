@@ -28,7 +28,7 @@ status_main() {
   fi
   log_kv "swap" "$SO_SWAP_KIND$([ "$SO_SWAP_KB" -gt 0 ] && printf ', %s' "$(human_mb $((SO_SWAP_KB / 1024)))")"
   log_kv "package manager" "$SO_PKG_MANAGER$(pkg_can_install || printf ' (--install-tools only recommends here)')"
-  log_kv "init system" "$SO_INIT_SYSTEM"
+  log_kv "init system" "$SO_INIT_SYSTEM$([ "$SO_HAS_SYSTEMD" = 1 ] || ! has_cmd systemctl || printf ' (systemctl is installed, but systemd is not running: systemd-only steps and packages are left out)')"
 
   n=0
   while IFS=$'\t' read -r key value; do

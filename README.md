@@ -20,7 +20,11 @@ It is plain bash (4.4 or newer) with coreutils, `grep` and `sed`. CI runs it
 on Ubuntu, Debian, Fedora, Rocky Linux, Arch, openSUSE Tumbleweed and Leap,
 and Alpine. It knows the package managers and init systems of other
 distributions too (Void with runit, Gentoo with OpenRC, NixOS and Fedora
-Atomic, where it says what to install by hand).
+Atomic, where it says what to install by hand). CI also boots Debian with
+SysV init and systemctl installed, as MX Linux ships it: there the
+systemd-only parts (Performance Co-Pilot, tuned, systemd-oomd, sched_ext,
+profile-sync-daemon) are left out with the reason, and services go through
+update-rc.d.
 
 This is a modular rewrite of [Ed Reel's](https://github.com/uberhacker)
 [system-optimize](https://github.com/uberhacker/system-optimize). The idea

@@ -111,7 +111,7 @@ journal_step() {
   local max want other ov of ob rc=0
   max=$(cfg JOURNAL_MAX); max="${max:-500M}"
   if [ "$SO_HAS_SYSTEMD" != 1 ]; then
-    step_skip "no systemd journal (this system logs with $SO_INIT_SYSTEM's syslog)"
+    step_skip "no systemd journal: $(init_no_systemd_note), so logs go to its syslog daemon"
     return 0
   fi
   want=$(boot_size_bytes "$max") || { step_fail "JOURNAL_MAX=$max is not a size"; return 1; }

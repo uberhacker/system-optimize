@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# dpkg stub: "--audit" prints STUB_DPKG_AUDIT (dpkg's own wording around the
+# package lines) when it is set; everything else is logged and succeeds.
+printf 'dpkg %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+case "${1:-}" in
+  --audit|-C)
+    if [ -n "${STUB_DPKG_AUDIT:-}" ]; then
+      printf '%s\n' 'The following packages are only half configured, probably due to problems' \
+        'configuring them the first time.  The configuration should be retried using' \
+        'dpkg --configure <package> or the configure option in the dselect menu:'
+      for p in $STUB_DPKG_AUDIT; do printf ' %-20s %s\n' "$p" "a package left half set up"; done
+    fi ;;
+esac
+exit 0

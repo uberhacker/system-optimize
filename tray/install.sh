@@ -7,7 +7,11 @@
 #   --extension     the GNOME Shell extension, enabled for you (log out and in)
 #   --monitoring    Performance Co-Pilot, so the resource screens have long
 #                   history (pcp-zeroconf and pcp-system-tools on Fedora), and
-#                   its AMD GPU agent where there is an AMD GPU
+#                   its AMD GPU agent where there is an AMD GPU. Needs systemd
+#                   running as init: elsewhere it is skipped with a message
+#                   (Debian's pcp package fails to set up under SysV init
+#                   when systemctl is installed, as on MX Linux), and the
+#                   tray keeps its own resource history
 #   --agent         the optional tuning agent, then its model and schedule for
 #                   you (install-agent.sh; about 3 GB download, 3-3.5 GB RAM
 #                   while it runs)
@@ -92,6 +96,16 @@ fi
 MAKE=(make -C "$HERE" PREFIX="$PREFIX")
 
 # -- monitoring: Performance Co-Pilot ---------------------------------------
+# systemd_running: systemd is PID 1 (systemctl being installed is not enough:
+# MX Linux ships it beside SysV init). SO_TRAY_INIT=systemd|other overrides.
+systemd_running() {
+    case "${SO_TRAY_INIT:-}" in
+        systemd) return 0 ;;
+        "") [ -d /run/systemd/system ] ;;
+        *) return 1 ;;
+    esac
+}
+
 amd_gpu() { grep -qs '^0x1002$' /sys/class/drm/card*/device/vendor; }
 
 monitoring_packages() {
@@ -135,6 +149,11 @@ pkg_remove() {
 
 install_monitoring() {
     local pkgs=() new=() p
+    if ! systemd_running; then
+        say "Performance Co-Pilot left out: its packages set themselves up through systemd, which is not running here."
+        say "The tray keeps its own hourly and daily resource history without it."
+        return 0
+    fi
     mapfile -t pkgs < <(monitoring_packages)
     [ ${#pkgs[@]} -gt 0 ] || { warn "no supported package manager (dnf, apt, pacman, zypper): install pcp yourself"; return 1; }
     for p in "${pkgs[@]}"; do installed "$p" || new+=("$p"); done
@@ -148,9 +167,7 @@ install_monitoring() {
     else
         say "Performance Co-Pilot is already installed."
     fi
-    if command -v systemctl >/dev/null 2>&1; then
-        as_root systemctl enable --now pmcd.service pmlogger.service
-    fi
+    as_root systemctl enable --now pmcd.service pmlogger.service
     if amd_gpu && ! command -v amdgpu_top >/dev/null 2>&1; then
         say "For per-process GPU memory, install amdgpu_top from https://github.com/Umio-Yasuno/amdgpu_top/releases"
     fi

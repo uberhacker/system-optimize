@@ -25,8 +25,12 @@
 #                      ("w" lines, applied by systemd-tmpfiles at boot)
 #   OpenRC + local.d   /etc/local.d/system-optimize-{mglru,thp}.start
 #                      (Alpine, Gentoo; the "local" service runs it)
-#   anything else      until the next reboot only (Void's runit, minimal
-#                      systems); the result says so
+#   sysfsutils         /etc/sysfs.d/system-optimize-{mglru,thp}.conf, on
+#                      any other init where sysfsutils is installed (its
+#                      boot script applies /etc/sysfs.d: Devuan, MX Linux)
+#   anything else      until the next reboot only (Void's runit, SysV init
+#                      without sysfsutils); the result says so and names
+#                      sysfsutils where the package manager has it
 # Containers are skipped (the host's kernel owns these), and so are kernels
 # without MGLRU or THP. Undo: the sysfs values go back to what they were and
 # the persistence file is removed (or its old copy restored).
@@ -52,6 +56,8 @@ memory_persist_file() {
     printf '/etc/tmpfiles.d/system-optimize-%s.conf\n' "$1"
   elif [ "$SO_INIT_SYSTEM" = openrc ] && [ -d "$(so_path /etc/local.d)" ]; then
     printf '/etc/local.d/system-optimize-%s.start\n' "$1"
+  elif [ -d "$(so_path /etc/sysfs.d)" ]; then
+    printf '/etc/sysfs.d/system-optimize-%s.conf\n' "$1"
   else
     return 1
   fi
@@ -69,6 +75,13 @@ memory_persist_content() {
         printf 'echo %s > %s 2>/dev/null\n' "${pv#*=}" "${pv%%=*}"
       done
       printf 'exit 0\n' ;;
+    /etc/sysfs.d/*)
+      # sysfsutils: "attribute = value", relative to /sys.
+      printf '%s\n' "# Written by system-optimize ($(version_string)). Undo: system-optimize --undo"
+      for pv in "$@"; do
+        pv="${pv#/sys/}"
+        printf '%s = %s\n' "${pv%%=*}" "${pv#*=}"
+      done ;;
     *)
       printf '%s\n' "# Written by system-optimize ($(version_string)). Undo: system-optimize --undo"
       for pv in "$@"; do
@@ -106,7 +119,13 @@ memory_choices() {
 #   AFTER    added to the note when something changed
 memory_result() {
   local changed="$1" rc="$2" what="$3" after="${4:-}" where
-  if [ -n "$SO_MEMORY_KEPT" ]; then where="kept in $SO_MEMORY_KEPT"; else where="until the next reboot (nothing here applies it at boot)"; fi
+  if [ -n "$SO_MEMORY_KEPT" ]; then
+    where="kept in $SO_MEMORY_KEPT"
+  elif [ "$SO_INIT_SYSTEM" = sysvinit ] || [ "$SO_INIT_SYSTEM" = runit ]; then
+    where="until the next reboot (install sysfsutils and run this again to keep it at boot)"
+  else
+    where="until the next reboot (nothing here applies it at boot)"
+  fi
   if [ "$changed" = 0 ] && { [ "$rc" = 3 ] || [ -z "$SO_MEMORY_KEPT" ]; }; then
     step_ok "$what already set${SO_MEMORY_KEPT:+; kept in $SO_MEMORY_KEPT}"
   elif [ "$SO_DRY_RUN" = 1 ]; then

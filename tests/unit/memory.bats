@@ -78,6 +78,26 @@ tree() {
   [ ! -e "$SANDBOX$MGLRU_CONF" ]
 }
 
+@test "mglru and thp: SysV init with sysfsutils keeps them in /etc/sysfs.d; --undo removes it" {
+  mkdir -p "$SANDBOX/etc/sysfs.d"
+  run env SO_INIT=sysvinit "$SO" -y --only mglru,thp
+  [ "$status" -eq 0 ]
+  assert_output_contains "kept in /etc/sysfs.d/system-optimize-mglru.conf"
+  grep -qx 'kernel/mm/lru_gen/min_ttl_ms = 1000' "$SANDBOX/etc/sysfs.d/system-optimize-mglru.conf"
+  grep -qx 'kernel/mm/transparent_hugepage/enabled = madvise' "$SANDBOX/etc/sysfs.d/system-optimize-thp.conf"
+  [ ! -e "$SANDBOX$MGLRU_CONF" ]
+  run env SO_INIT=sysvinit "$SO" --undo -y
+  [ "$status" -eq 0 ]
+  [ ! -e "$SANDBOX/etc/sysfs.d/system-optimize-mglru.conf" ]
+  [ "$(get /sys/kernel/mm/lru_gen/min_ttl_ms)" = 0 ]
+}
+
+@test "mglru: SysV init without sysfsutils lasts until the reboot and names sysfsutils" {
+  run env SO_INIT=sysvinit "$SO" -y --only mglru
+  [ "$status" -eq 0 ]
+  assert_output_contains "until the next reboot (install sysfsutils and run this again to keep it at boot)"
+}
+
 @test "mglru: without a way to apply it at boot it lasts until the reboot" {
   run env SO_INIT=runit "$SO" -y --only mglru
   [ "$status" -eq 0 ]

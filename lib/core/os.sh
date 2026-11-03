@@ -21,13 +21,15 @@
 # Gentoo atom, a NixOS option, an rpm-ostree layer and a reboot are the
 # owner's decision).
 #
-# Init system: systemd, openrc (Alpine, Gentoo, Artix), runit (Void) or
-# none (most containers). The svc_* helpers take a service's base name
-# (earlyoom) and answer for whichever init runs; svc_set in snapshot.sh
-# changes one and records it for --undo.
+# Init system: systemd, openrc (Alpine, Gentoo, Artix), runit (Void),
+# sysvinit (Devuan, MX Linux, antiX) or none (most containers). The svc_*
+# helpers take a service's base name (earlyoom) and answer for whichever
+# init runs; svc_set in snapshot.sh changes one and records it for --undo.
+# Only systemd running as PID 1 counts as systemd, and packages that need
+# it (SO_SYSTEMD_ONLY_PKGS) are not installed under another init.
 #
 # Overrides (tests and odd machines): SO_PKG (a manager name or none),
-# SO_INIT (systemd, openrc, runit or none).
+# SO_INIT (systemd, openrc, runit, sysvinit or none).
 #
 # Changes from 1.x: 1.x did not look at the distribution at all. 2.0.0
 # knew dnf, apt, pacman and zypper from the commands on PATH; this module
@@ -142,7 +144,21 @@ os_is_like() {
   return 1
 }
 
+# init_is_sysvinit: SysV init runs as PID 1 (Devuan, MX Linux, antiX,
+# Slackware). Its init makes the /run/initctl FIFO; failing that, PID 1 is
+# "init" and /etc/inittab exists. A container's PID 1 is its shell, so a
+# container stays "none" even with an inittab in its image.
+init_is_sysvinit() {
+  local comm
+  [ -p "$(so_path /run/initctl)" ] && return 0
+  comm=$(read_line "$(so_path /proc/1/comm)" 2>/dev/null) || return 1
+  [ "$comm" = init ] && [ -r "$(so_path /etc/inittab)" ]
+}
+
 # init_scan: which init system runs (SO_INIT_SYSTEM, SO_HAS_SYSTEMD).
+# Only systemd running as PID 1 counts as systemd: MX Linux and others
+# install systemd's tools (systemctl) beside SysV init, and systemctl
+# there answers "System has not been booted with systemd as init system".
 init_scan() {
   if [ -n "${SO_INIT:-}" ]; then
     SO_INIT_SYSTEM="$SO_INIT"
@@ -152,12 +168,49 @@ init_scan() {
     SO_INIT_SYSTEM=openrc
   elif [ -d "$(so_path /run/runit)" ] || { has_cmd sv && [ -d "$(so_path /etc/runit/runsvdir)" ]; }; then
     SO_INIT_SYSTEM=runit
+  elif init_is_sysvinit; then
+    SO_INIT_SYSTEM=sysvinit
   else
     SO_INIT_SYSTEM=none
   fi
-  case "$SO_INIT_SYSTEM" in systemd|openrc|runit|none) ;; *) SO_INIT_SYSTEM=none ;; esac
+  case "$SO_INIT_SYSTEM" in systemd|openrc|runit|sysvinit|none) ;; *) SO_INIT_SYSTEM=none ;; esac
   if [ "$SO_INIT_SYSTEM" = systemd ]; then SO_HAS_SYSTEMD=1; else SO_HAS_SYSTEMD=0; fi
 }
+
+# init_label: the init system as a reader would name it.
+init_label() {
+  case "$SO_INIT_SYSTEM" in
+    systemd) echo systemd ;;
+    openrc) echo OpenRC ;;
+    runit) echo runit ;;
+    sysvinit) echo "SysV init" ;;
+    *) echo "no init system (a container?)" ;;
+  esac
+}
+
+# init_no_systemd_note: why a systemd-only part is left out here, e.g.
+# "this system runs SysV init (systemctl is installed, but systemd is not
+# running)".
+init_no_systemd_note() {
+  local note
+  if [ "$SO_INIT_SYSTEM" = none ]; then note="this system runs no init system"
+  else note="this system runs $(init_label)"
+  fi
+  if has_cmd systemctl; then note+=" (systemctl is installed, but systemd is not running)"; fi
+  printf '%s\n' "$note"
+}
+
+# SO_SYSTEMD_ONLY_PKGS: packages that set themselves up through systemd and
+# cannot do it under another init. Debian's pcp is the known case: its
+# install script runs systemctl whenever systemctl exists, so on MX Linux
+# (SysV init with systemd's tools installed) dpkg leaves pcp half set up
+# and every later apt run fails until it is fixed by hand.
+SO_SYSTEMD_ONLY_PKGS="pcp pcp-zeroconf pcp-system-tools pcp-pmda-amdgpu tuned tuned-ppd
+  systemd-oomd systemd-zram-generator zram-generator uresourced scx-scheds scx-tools scx_loader
+  btrfsd profile-sync-daemon bpftune lact"
+
+# pkg_needs_systemd NAME: NAME only works (or only installs) with systemd.
+pkg_needs_systemd() { list_has "$SO_SYSTEMD_ONLY_PKGS" "$1"; }
 
 # os_detect: SO_OS_*, SO_PKG_MANAGER and SO_INIT_SYSTEM.
 os_detect() {
@@ -198,6 +251,7 @@ svc_exists() {
     systemd) unit_exists "$1.service" ;;
     openrc) [ -x "$(so_path "/etc/init.d/$1")" ] ;;
     runit) [ -d "$(so_path "/etc/sv/$1")" ] ;;
+    sysvinit) [ -x "$(so_path "/etc/init.d/$1")" ] ;;
     *) return 1 ;;
   esac
 }
@@ -212,6 +266,11 @@ svc_active() {
       local out
       out=$(run sv status "$1" 2>/dev/null) || return 1
       [[ "$out" == run:* ]] ;;
+    sysvinit)
+      svc_exists "$1" || return 1
+      if has_cmd service; then run service "$1" status >/dev/null 2>&1
+      else run "$(so_path "/etc/init.d/$1")" status >/dev/null 2>&1
+      fi ;;
     *) return 1 ;;
   esac
 }
@@ -234,6 +293,13 @@ svc_enabled_state() {
       else
         echo disabled
       fi ;;
+    sysvinit)
+      # Enabled: a start link in one of the multi-user runlevels.
+      svc_exists "$1" || { echo absent; return 0; }
+      for lvl in 2 3 4 5; do
+        if compgen -G "$(so_path "/etc/rc$lvl.d")/S[0-9][0-9]$1" >/dev/null; then echo enabled; return 0; fi
+      done
+      echo disabled ;;
     *) echo absent ;;
   esac
 }
@@ -252,6 +318,18 @@ pkg_hand_hint() {
     nix) echo "enable it in configuration.nix (services.$1.enable = true) and nixos-rebuild switch" ;;
     *) echo "install the package $1 with your package manager" ;;
   esac
+}
+
+# pkg_dpkg_broken: the packages dpkg left unpacked or half set up (by a
+# failed install script), comma-separated; failure when there are none.
+# apt refuses to install anything else until they are fixed.
+pkg_dpkg_broken() {
+  local out
+  has_cmd dpkg || return 1
+  out=$(run dpkg --audit 2>/dev/null) || true
+  out=$(printf '%s\n' "$out" | awk '/^ [a-z0-9][a-z0-9.+-]*[: ]/ { sub(/^ /, ""); sub(/[: ].*/, ""); print }' | sort -u | paste -sd, -)
+  [ -n "$out" ] || return 1
+  printf '%s\n' "${out//,/, }"
 }
 
 # _dnf_cmd: dnf, or yum on old systems.
@@ -273,6 +351,15 @@ pkg_installed() {
 # package timeout. They change the system: callers check SO_DRY_RUN first.
 pkg_install() {
   local -a cmd
+  local broken
+  if pkg_needs_systemd "$1" && [ "$SO_HAS_SYSTEMD" != 1 ]; then
+    log_warn "$1: not installed; it needs systemd and $(init_no_systemd_note)"
+    return 1
+  fi
+  if [ "$SO_PKG_MANAGER" = apt ] && broken=$(pkg_dpkg_broken); then
+    log_error "$1: not installed; dpkg has packages left half set up ($broken). Fix those first (sudo dpkg --configure -a, or remove them), then run this again"
+    return 1
+  fi
   case "$SO_PKG_MANAGER" in
     dnf) cmd=("$(_dnf_cmd)" install -y "$1") ;;
     apt) cmd=(env DEBIAN_FRONTEND=noninteractive apt-get install -y "$1") ;;

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# service / invoke-rc.d stub (SysV init): "NAME status" succeeds when NAME is
+# in STUB_ACTIVE; start and stop are logged.
+printf '%s %s\n' "$(basename "$0")" "$*" >> "${STUB_LOG:-/dev/null}"
+case "${2:-}" in
+  status) [[ " ${STUB_ACTIVE:-} " == *" $1 "* ]] ;;
+  *) exit 0 ;;
+esac

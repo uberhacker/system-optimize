@@ -795,7 +795,7 @@ psd_in_repos() {
 psd_step() {
   local prev changed=0 notes=()
   if [ "$SO_INIT_SYSTEM" != systemd ]; then
-    step_skip "profile-sync-daemon needs systemd user units"
+    step_skip "profile-sync-daemon needs systemd user units; $(init_no_systemd_note)"
     return 0
   fi
   if [ "$SO_IN_CONTAINER" = 1 ]; then
