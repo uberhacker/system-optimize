@@ -269,21 +269,22 @@ gunit_set() {
 # service by its base name with whichever init runs, recording its state
 # before. systemd goes through unit_set; OpenRC uses rc-update and
 # rc-service (default runlevel); runit links /etc/sv/NAME into the service
-# directory, which runsvdir starts within seconds.
+# directory, which runsvdir starts within seconds; SysV init uses
+# update-rc.d (or chkconfig) and the service's /etc/init.d script.
 svc_set() {
   local name="$1" action="$2" prev
   case "$SO_INIT_SYSTEM" in
     systemd) unit_set "$name.service" "$action"; return ;;
-    openrc|runit) ;;
+    openrc|runit|sysvinit) ;;
     *) log_warn "$name: no init system to $action it with"; return 1 ;;
   esac
   prev=$(svc_enabled_state "$name")
   if [ "$prev" = absent ]; then
-    log_warn "$name: no $SO_INIT_SYSTEM service of that name"
+    log_warn "$name: no $(init_label) service of that name"
     return 1
   fi
   if [ "$SO_DRY_RUN" = 1 ]; then
-    log_dry "would $action the $SO_INIT_SYSTEM service $name"
+    log_dry "would $action the $(init_label) service $name"
     plan_note unit "$name" "$prev" "${action}d"
     return 0
   fi
@@ -310,8 +311,29 @@ _svc_apply() {
       [ -L "$(so_path "$dir/$name")" ] || return 0
       has_cmd sv && { do_run sv down "$name" || true; }
       do_run rm -f -- "$(so_path "$dir/$name")" ;;
+    sysvinit:enable)
+      if has_cmd update-rc.d; then do_run update-rc.d "$name" defaults || return 1
+      elif has_cmd chkconfig; then do_run chkconfig "$name" on || return 1
+      else log_warn "$name: neither update-rc.d nor chkconfig is here to enable it"; return 1
+      fi
+      _sysv_service "$name" start ;;
+    sysvinit:disable)
+      _sysv_service "$name" stop || true
+      if has_cmd update-rc.d; then do_run update-rc.d -f "$name" remove
+      elif has_cmd chkconfig; then do_run chkconfig "$name" off
+      else return 1
+      fi ;;
     *) return 1 ;;
   esac
+}
+
+# _sysv_service NAME start|stop: through invoke-rc.d or service when there,
+# else the init script itself.
+_sysv_service() {
+  if has_cmd invoke-rc.d; then do_run invoke-rc.d "$1" "$2"
+  elif has_cmd service; then do_run service "$1" "$2"
+  else do_run "$(so_path "/etc/init.d/$1")" "$2"
+  fi
 }
 
 # pkg_add NAME: install a package, recording it for --undo (which removes
@@ -420,7 +442,7 @@ _undo_valid() {
       [[ "$target" =~ ^/sys/[A-Za-z0-9_./:-]+$ ]] && [[ "$target" != *..* ]] &&
         [[ "$value" =~ ^[A-Za-z0-9_.+-]*$ ]] ;;
     unit|gunit) [[ "$target" =~ ^[A-Za-z0-9@._-]+$ ]] && [[ "$value" =~ ^[a-z-]+$ ]] ;;
-    svc) [[ "$target" =~ ^(openrc|runit):[A-Za-z0-9@._-]+$ ]] && [[ "$value" =~ ^(enabled|disabled)$ ]] ;;
+    svc) [[ "$target" =~ ^(openrc|runit|sysvinit):[A-Za-z0-9@._-]+$ ]] && [[ "$value" =~ ^(enabled|disabled)$ ]] ;;
     ppd) [[ "$value" =~ ^[A-Za-z0-9_.-]*$ ]] ;;
     tuned) [[ "$value" =~ ^[A-Za-z0-9_.\ -]*$ ]] ;;
     pkg) [[ "$target" =~ ^[A-Za-z0-9+._-]+$ ]] ;;

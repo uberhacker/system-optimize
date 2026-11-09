@@ -199,7 +199,7 @@ scheduler_step() {
     return 0
   fi
   if [ "$SO_INIT_SYSTEM" != systemd ]; then
-    step_skip "scx_loader needs systemd (this system uses $SO_INIT_SYSTEM)"
+    step_skip "scx_loader needs systemd; $(init_no_systemd_note)"
     return 0
   fi
   state=$(scx_state)
@@ -270,7 +270,8 @@ step_def responsive opt-in responsive_step '' \
 # sched_ext scheduler runs and the scheduler step is not in this run.
 responsive_ananicy_allowed() {
   scx_running && return 1
-  step_enabled scheduler && return 1
+  # The scheduler step sets up sched_ext only where systemd runs (scx_loader).
+  step_enabled scheduler && [ "$SO_INIT_SYSTEM" = systemd ] && return 1
   return 0
 }
 
@@ -321,7 +322,7 @@ _responsive_part() {
   case "$rc" in
     0) RESP_DONE+=("$pkg") ;;
     3) if [ "$had" = 1 ]; then RESP_OK+=("$pkg"); else RESP_DONE+=("$pkg"); fi ;;
-    2) if [ "$had" = 1 ]; then RESP_SKIPPED+=("$pkg (no $SO_INIT_SYSTEM service)"); else RESP_DONE+=("$pkg (no $SO_INIT_SYSTEM service to enable)"); fi ;;
+    2) if [ "$had" = 1 ]; then RESP_SKIPPED+=("$pkg (no $(init_label) service)"); else RESP_DONE+=("$pkg (no $(init_label) service to enable)"); fi ;;
     *) RESP_FAILED+=("$svc (could not enable)") ;;
   esac
 }

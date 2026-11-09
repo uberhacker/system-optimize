@@ -252,6 +252,14 @@ conf_has() { grep -qxF -- "$1" "$SANDBOX$CONF"; }
   assert_not_called "enable --now ananicy-cpp"
 }
 
+@test "responsive: without systemd the scheduler step does not keep ananicy-cpp out" {
+  run env SO_INIT=sysvinit "$SO" -n --only scheduler,responsive
+  [ "$status" -eq 0 ]
+  assert_output_contains "scx_loader needs systemd; this system runs SysV init (systemctl is installed, but systemd is not running)"
+  assert_output_not_contains "the scheduler step sets up sched_ext in this run"
+  assert_output_contains "uresourced (needs systemd)"
+}
+
 @test "responsive: warns when ananicy-cpp and a sched_ext scheduler both run" {
   sched_ext enabled scx_lavd
   run env STUB_UNITS="$STUB_UNITS uresourced.service ananicy-cpp.service" STUB_ACTIVE="ananicy-cpp.service" \

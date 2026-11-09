@@ -236,7 +236,8 @@ HOST_TOOLS="amd-ttm btrfs flatpak fwupdmgr gsettings iw kreadconfig6 kreadconfig
   xbps-install xbps-query xbps-remove rc-service rc-update sv dracut ccache
   plocate updatedb localsearch tracker3 nmcli resolvectl profile-sync-daemon psd
   ananicy-cpp bpftune lact amdgpu_top llama-bench pmcd psi-notify tlp
-  auto-cpufreq thermald earlyoom nohang system76-power"
+  auto-cpufreq thermald earlyoom nohang system76-power update-rc.d invoke-rc.d
+  service chkconfig"
 hide_host_tools() {
   local cache="$BATS_RUN_TMPDIR/host-path" key
   key="$PATH"
@@ -449,7 +450,7 @@ load_so() {
   # shellcheck disable=SC1091
   source "$REPO_ROOT/lib/core/status.sh"
   # version_string lives in the entry point; a small stand-in for the tests.
-  # shellcheck disable=SC2317  # called by the modules under test
+  # shellcheck disable=SC2317,SC2329  # called by the modules under test
   version_string() { printf 'system-optimize %s (test)\n' "$(tr -d '[:space:]' < "$REPO_ROOT/VERSION")"; }
   user_init
   config_load

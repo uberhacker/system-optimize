@@ -112,3 +112,16 @@ jobs:
       - run: bash tests/install-smoke.sh
         env:
           SO_EXPECT_PKG: ${{ matrix.pkg }}
+
+  # A machine without systemd as PID 1 but with systemctl installed, as MX
+  # Linux ships: Debian 12 booted with SysV init inside a container. Debian's
+  # pcp package breaks dpkg there, so install.sh --full must leave it out;
+  # services go through update-rc.d and their init scripts. See
+  # tests/sysvinit.sh.
+  sysvinit:
+    name: SysV init as PID 1 (Debian 12, systemctl installed)
+    runs-on: ubuntu-latest
+    needs: [lint, unit]
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tests/sysvinit.sh

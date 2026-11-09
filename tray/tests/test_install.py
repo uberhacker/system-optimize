@@ -9,11 +9,13 @@ from helpers import TRAY
 SCRIPT = os.path.join(TRAY, "install.sh")
 
 
-def run(*args, path=None):
+def run(*args, path=None, init=None):
     d = tempfile.mkdtemp()
     env = dict(os.environ, XDG_STATE_HOME=os.path.join(d, "state"))
     if path is not None:
         env["PATH"] = path
+    if init is not None:
+        env["SO_TRAY_INIT"] = init
     return subprocess.run([SCRIPT, *args], env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
 
 
@@ -39,6 +41,21 @@ class InstallScriptTest(unittest.TestCase):
         self.assertRegex(p.stdout, r"make -C \S+ PREFIX=/usr uninstall-extension")
         self.assertIn("installed no monitoring packages", p.stdout)
         self.assertNotRegex(p.stdout, r"PREFIX=/usr install-tray")
+
+    def test_monitoring_skipped_without_systemd(self):
+        # MX Linux: SysV init with systemctl installed. Debian's pcp fails to
+        # set up there, so nothing is installed and nothing is enabled.
+        p = run("--monitoring", "--dry-run", "--yes", init="sysvinit")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("Performance Co-Pilot left out", p.stdout)
+        self.assertNotIn("pcp", p.stdout.replace("Performance Co-Pilot", ""))
+        self.assertNotIn("systemctl", p.stdout)
+
+    def test_monitoring_with_systemd_enables_pmcd(self):
+        p = run("--monitoring", "--dry-run", "--yes", init="systemd")
+        if "no supported package manager" in p.stderr:
+            self.skipTest("no dnf, apt, pacman or zypper here")
+        self.assertIn("systemctl enable --now pmcd.service pmlogger.service", p.stdout)
 
     def test_bad_usage(self):
         self.assertEqual(run("--frobnicate").returncode, 2)

@@ -171,7 +171,9 @@ gaming and llm profiles.
 **Per distribution.** With systemd, the tmpfiles.d entry keeps it. On
 OpenRC with `/etc/local.d` (Alpine, Gentoo) a script
 `/etc/local.d/system-optimize-mglru.start` does, which the `local` service
-runs at boot. Elsewhere (Void's runit, minimal systems) the value lasts
+runs at boot. On any other init with sysfsutils installed (Devuan, MX
+Linux) `/etc/sysfs.d/system-optimize-mglru.conf` does. Elsewhere (Void's
+runit, SysV init without sysfsutils, minimal systems) the value lasts
 until the next reboot and the result says so. Skipped in containers (the
 host's kernel owns reclaim), on kernels without MGLRU
 (`/sys/kernel/mm/lru_gen` missing) and where MGLRU is built in but switched

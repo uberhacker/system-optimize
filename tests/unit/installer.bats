@@ -108,6 +108,36 @@ EOF
   ! grep -q 'dnf install -y pcp-zeroconf' "$STUB_LOG"
 }
 
+# sysvinit_box: MX Linux as Ed has it: Debian with SysV init as PID 1 and
+# systemd's tools (systemctl) installed beside it.
+sysvinit_box() {
+  rm -rf "$SANDBOX/run/systemd"
+  mkfifo "$SANDBOX/run/initctl"
+  printf 'ID=debian\nPRETTY_NAME="MX 23.4 (Debian 12)"\n' > "$SO_INSTALL_OSRELEASE"
+}
+
+@test "--full under SysV init leaves out PCP, monitoring and scx, and installs no package" {
+  sysvinit_box
+  fake_tray
+  run bash "$CHECKOUT/install.sh" --full --yes --prefix "$PREFIX_DIR"
+  [ "$status" -eq 0 ]
+  assert_output_contains "pcp: needs systemd, and this system runs SysV init"
+  assert_output_contains "monitoring: needs systemd, and this system runs SysV init"
+  assert_output_contains "scx: needs systemd"
+  ! grep -q 'pcp' "$STUB_LOG"
+  ! grep -q -- '--monitoring' "$STUB_LOG"
+  grep -q '^tray-install --tray' "$STUB_LOG"
+  ! grep -q '^pkg' "$SO_INSTALL_MANIFEST"
+}
+
+@test "--custom pcp under SysV init says why instead of breaking dpkg" {
+  sysvinit_box
+  run bash "$CHECKOUT/install.sh" --custom pcp --prefix "$PREFIX_DIR"
+  [ "$status" -ne 0 ]
+  assert_output_contains "can't install pcp: needs systemd, and this system runs SysV init"
+  ! grep -q 'install -y' "$STUB_LOG"
+}
+
 @test "--apply runs the program, and --uninstall disables what it applied and puts everything back" {
   run bash "$CHECKOUT/install.sh" --custom thp,pcp --apply --prefix "$PREFIX_DIR"
   [ "$status" -eq 0 ]

@@ -23,6 +23,11 @@
 #   lact          LACT, the AMD GPU control daemon (shown how to get it)
 # The tray, extension, monitoring and agent parts are installed by the tray
 # app's own tray/install.sh, offered only when this checkout has it.
+# monitoring, pcp, scx, bpftune and lact need systemd running as init. On
+# SysV init, OpenRC or runit they are not offered, and Full lists them as
+# left out: Debian's pcp package runs systemctl in its install script
+# whenever systemctl exists, so on MX Linux (SysV init with systemd's tools
+# installed) it is left half set up and apt fails until it is fixed.
 #
 # The manifest (one "KIND<TAB>..." line per change, in the order made):
 #   file PATH                   a file this installer copied
@@ -154,6 +159,28 @@ inst_disk_kb() {
 }
 
 inst_gib() { awk -v k="${1:-0}" 'BEGIN { printf "%.1f GiB", k / 1048576 }'; }
+
+# inst_systemd_running: systemd is PID 1. Having systemctl is not enough
+# (MX Linux ships it beside SysV init). SO_INSTALL_INIT=systemd|other
+# overrides, for tests.
+inst_systemd_running() {
+  case "${SO_INSTALL_INIT:-}" in
+    systemd) return 0 ;;
+    "") [ -d "${SO_ROOT:-}/run/systemd/system" ] ;;
+    *) return 1 ;;
+  esac
+}
+
+# inst_init_name: the running init system, for messages.
+inst_init_name() {
+  if inst_systemd_running; then echo systemd
+  elif [ -n "${SO_INSTALL_INIT:-}" ]; then echo "$SO_INSTALL_INIT"
+  elif [ -d "${SO_ROOT:-}/run/openrc" ]; then echo OpenRC
+  elif [ -d "${SO_ROOT:-}/run/runit" ]; then echo runit
+  elif [ -p "${SO_ROOT:-}/run/initctl" ] || [ -r "${SO_ROOT:-}/etc/inittab" ]; then echo "SysV init"
+  else echo "no init system"
+  fi
+}
 
 inst_pkg_manager() {
   local m
@@ -298,6 +325,10 @@ inst_full_why() {
 # inst_unavailable NAME: why NAME can't be installed here, or nothing.
 inst_unavailable() {
   case "$1" in
+    monitoring|pcp|scx|bpftune|lact)
+      inst_systemd_running || { echo "needs systemd, and this system runs $(inst_init_name)"; return; } ;;
+  esac
+  case "$1" in
     tray|extension|monitoring|agent)
       [ -f "$(inst_tray_script)" ] || { echo "this checkout has no tray directory yet; the tray app's pull request adds it"; return; } ;;
   esac
@@ -349,7 +380,11 @@ inst_pick_full() {
   for n in $(inst_all_names); do
     [ "$n" = cli ] && continue
     [[ " ${INST_CATEGORIES[*]} " == *" $n "* ]] && continue
-    [ -z "$(inst_unavailable "$n")" ] || continue
+    why=$(inst_unavailable "$n")
+    if [ -n "$why" ]; then
+      [[ "$why" == "needs systemd"* ]] && INST_EXCLUDED+=("$n"$'\t'"$why")
+      continue
+    fi
     case "$n" in bpftune|lact) continue ;; esac   # nothing to install
     why=$(inst_full_why "$n")
     if [ -n "$why" ]; then INST_EXCLUDED+=("$n"$'\t'"$why"); continue; fi
@@ -585,6 +620,8 @@ inst_do_helpers() {
   local mgr pkg
   if [ -n "${INST_PICK[pcp]:-}" ] && [ -n "${INST_PICK[monitoring]:-}" ]; then
     inst_ok "pcp: installed with the tray's monitoring part"
+  elif [ -n "${INST_PICK[pcp]:-}" ] && ! inst_systemd_running; then
+    inst_warn "pcp: left out; it needs systemd, and this system runs $(inst_init_name)"
   elif [ -n "${INST_PICK[pcp]:-}" ]; then
     mgr=$(inst_pkg_manager)
     case "$mgr" in dnf|apt-get) pkg=pcp-zeroconf ;; *) pkg="" ;; esac

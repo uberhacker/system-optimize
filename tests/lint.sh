@@ -9,8 +9,9 @@ set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 
-stubs=(tests/stubs/stub.sh tests/stubs/sudo tests/stubs/curl tests/stubs/sysctl tests/stubs/systemctl
-       tests/stubs/rpm tests/stubs/modinfo tests/stubs/optional/powerprofilesctl tests/stubs/optional/tuned-adm)
+stubs=(tests/stubs/stub.sh tests/stubs/sudo tests/stubs/curl tests/stubs/sysctl tests/stubs/systemctl tests/stubs/dpkg
+       tests/stubs/rpm tests/stubs/modinfo tests/stubs/optional/powerprofilesctl tests/stubs/optional/tuned-adm
+       tests/stubs/optional/update-rc.d tests/stubs/optional/service)
 
 rc=0
 for f in bin/system-optimize system-optimize install.sh build.sh tests/*.sh tests/test_helper.bash \
@@ -32,9 +33,10 @@ if command -v shellcheck >/dev/null 2>&1; then
   shellcheck -x bin/system-optimize system-optimize install.sh build.sh tests/*.sh tests/test_helper.bash \
     "${stubs[@]}" || rc=1
   shellcheck -s bash completions/*.bash || rc=1
-  # SC2317 (unreachable) is noise in the single file: the step functions are
-  # called by name.
-  [ -f "$bundle/system-optimize" ] && { shellcheck -e SC2317 "$bundle/system-optimize" || rc=1; }
+  # SC2317 (unreachable) and SC2329 (never invoked; version 0.11, which
+  # ubuntu-latest has since its move to Ubuntu 26, split it out of SC2317)
+  # are noise in the single file: the step functions are called by name.
+  [ -f "$bundle/system-optimize" ] && { shellcheck -e SC2317,SC2329 "$bundle/system-optimize" || rc=1; }
 else
   echo "shellcheck not installed; skipped" >&2
 fi
