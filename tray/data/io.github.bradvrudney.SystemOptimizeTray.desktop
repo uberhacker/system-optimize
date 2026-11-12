@@ -8,4 +8,4 @@ Icon=system-optimize-tray
 Terminal=false
 Categories=System;Monitor;Settings;
 Keywords=performance;tuning;power;temperature;
-StartupNotify=false
+StartupNotify=true

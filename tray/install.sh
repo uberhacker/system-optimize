@@ -3,7 +3,9 @@
 #
 # Usage: install.sh [parts] [options]
 # Parts (with none: --tray, plus --extension when GNOME Shell is installed):
-#   --tray          the tray app, its dashboard, root helper and polkit policy
+#   --tray          the tray app, its dashboard, root helper and polkit policy,
+#                   and PySide6 from the package manager when Python has
+#                   neither it nor PyQt6 (the dashboard cannot start without one)
 #   --extension     the GNOME Shell extension, enabled for you (log out and in)
 #   --monitoring    Performance Co-Pilot, so the resource screens have long
 #                   history (pcp-zeroconf and pcp-system-tools on Fedora), and
@@ -56,6 +58,61 @@ run() {
 
 as_root() {
     if [ "$(id -u)" = 0 ]; then run "$@"; else run sudo "$@"; fi
+}
+
+# -- the GNOME Shell extension ------------------------------------------------
+# GNOME Shell reads the system extension directory when it starts, so an
+# extension installed during the session is unknown to it until the next
+# login, and "gnome-extensions enable" fails with "does not exist". Then the
+# UUID goes into the enabled-extensions setting directly (what the shell
+# itself does on enable), and the shell turns the extension on when it finds
+# it at the next login. The uninstall takes it out of the setting the same
+# way. gsettings prints a string array as ['a', 'b'], or @as [] when empty.
+ext_setting_has() {
+    case "$(gsettings get org.gnome.shell "$1" 2>/dev/null)" in *"'$UUID'"*) return 0 ;; esac
+    return 1
+}
+
+ext_setting_add() {
+    local cur
+    cur=$(gsettings get org.gnome.shell "$1" 2>/dev/null) || return 1
+    case "$cur" in
+        *"'$UUID'"*) return 0 ;;
+        *"[]") cur="['$UUID']" ;;
+        *) cur="${cur%]}, '$UUID']" ;;
+    esac
+    gsettings set org.gnome.shell "$1" "$cur" 2>/dev/null
+}
+
+ext_setting_remove() {
+    local cur
+    cur=$(gsettings get org.gnome.shell "$1" 2>/dev/null) || return 1
+    case "$cur" in *"'$UUID'"*) ;; *) return 0 ;; esac
+    cur="${cur//"'$UUID', "/}"
+    cur="${cur//", '$UUID'"/}"
+    cur="${cur//"'$UUID'"/}"
+    [ "$cur" != "[]" ] || cur="@as []"
+    gsettings set org.gnome.shell "$1" "$cur" 2>/dev/null
+}
+
+ext_enable() {
+    local err
+    if [ "$DRY" = 1 ]; then run gnome-extensions enable "$UUID"; return 0; fi
+    if err=$(gnome-extensions enable "$UUID" 2>&1); then return 0; fi
+    if command -v gsettings >/dev/null 2>&1 && ext_setting_add enabled-extensions \
+        && ext_setting_remove disabled-extensions && ext_setting_has enabled-extensions; then
+        say "The running GNOME Shell does not know the extension yet; it is set to turn on at your next login."
+        return 0
+    fi
+    [ -z "$err" ] || warn "$err"
+    warn "enable it after logging in again: gnome-extensions enable $UUID"
+}
+
+ext_disable() {
+    if [ "$DRY" = 1 ]; then run gnome-extensions disable "$UUID"; return 0; fi
+    gnome-extensions disable "$UUID" 2>/dev/null && return 0
+    command -v gsettings >/dev/null 2>&1 && ext_setting_remove enabled-extensions
+    return 0
 }
 
 confirm() {
@@ -185,6 +242,36 @@ uninstall_monitoring() {
     [ "$DRY" = 1 ] || rm -f "$list"
 }
 
+# -- the dashboard's Qt binding ----------------------------------------------
+# The Makefile only copies files; the dashboard also needs PySide6 or PyQt6
+# for Python 3, which only the package manager can add.
+qt_binding_missing() {
+    ! python3 -c 'import PySide6' >/dev/null 2>&1 && ! python3 -c 'import PyQt6' >/dev/null 2>&1
+}
+
+qt_package() {
+    if command -v dnf >/dev/null 2>&1; then echo python3-pyside6
+    elif command -v apt-get >/dev/null 2>&1; then echo python3-pyside6.qtwidgets
+    elif command -v pacman >/dev/null 2>&1; then echo pyside6
+    elif command -v zypper >/dev/null 2>&1; then echo python3-pyside6
+    fi
+}
+
+install_qt() {
+    local pkg
+    qt_binding_missing || return 0
+    pkg=$(qt_package)
+    if [ -z "$pkg" ]; then
+        warn "the dashboard needs PySide6 or PyQt6 for Python 3: install one with your package manager"
+        return 0
+    fi
+    if confirm "Install $pkg (the tray and its dashboard need Qt for Python)?"; then
+        pkg_install "$pkg"
+    else
+        warn "without $pkg the tray and the dashboard cannot start; install it when you are ready"
+    fi
+}
+
 # -- the parts ----------------------------------------------------------------
 if [ "$UNINSTALL" = 1 ]; then
     if [ "$AGENT" = 1 ]; then
@@ -199,7 +286,7 @@ if [ "$UNINSTALL" = 1 ]; then
     fi
     if [ "$EXT" = 1 ]; then
         if command -v gnome-extensions >/dev/null 2>&1 && [ "$(id -u)" != 0 ]; then
-            run gnome-extensions disable "$UUID" || true
+            ext_disable
         fi
         as_root "${MAKE[@]}" uninstall-extension
     fi
@@ -209,11 +296,14 @@ if [ "$UNINSTALL" = 1 ]; then
     exit 0
 fi
 
-[ "$TRAY" = 1 ] && as_root "${MAKE[@]}" install-tray
+if [ "$TRAY" = 1 ]; then
+    as_root "${MAKE[@]}" install-tray
+    install_qt
+fi
 if [ "$EXT" = 1 ]; then
     as_root "${MAKE[@]}" install-extension
     if command -v gnome-extensions >/dev/null 2>&1 && [ "$(id -u)" != 0 ]; then
-        run gnome-extensions enable "$UUID" || warn "enable it after logging in again: gnome-extensions enable $UUID"
+        ext_enable
     fi
     say "GNOME: log out and back in to load the extension."
 fi

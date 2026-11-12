@@ -152,6 +152,18 @@ conf_has() { grep -qxF -- "$1" "$SANDBOX$CONF"; }
   [ ! -e "$SANDBOX$CONF" ]
 }
 
+@test "scheduler: scx-tools-git, which the COPR's scx-scheds pulls in, stands in for scx-tools" {
+  sched_ext
+  with_stub scx_bpfland scx_lavd
+  export STUB_RPM_INSTALLED=scx-tools-git
+  run "$SO" -y --only scheduler --install-tools
+  [ "$status" -eq 0 ]
+  assert_called "dnf install -y scx-scheds"
+  assert_not_called "dnf install -y scx-tools"
+  assert_output_not_contains "could not install"
+  conf_has 'default_sched = "scx_bpfland"'
+}
+
 @test "scheduler: a COPR enabled by hand is used without --install-tools; RHEL is skipped" {
   sched_ext
   with_stub scx_bpfland scx_lavd

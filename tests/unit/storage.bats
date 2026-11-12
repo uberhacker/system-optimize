@@ -551,6 +551,19 @@ EOF
   [ -z "$(snapshots)" ]
 }
 
+@test "psd: skips when the repositories have no profile-sync-daemon (Fedora 44) instead of failing" {
+  global_systemctl
+  export STUB_PKG_MISSING=profile-sync-daemon
+  run "$SO" -y --only psd
+  [ "$status" -eq 0 ]
+  assert_output_contains "profile-sync-daemon is not in the configured repositories of"
+  assert_called "dnf -q info profile-sync-daemon"
+  assert_not_called "dnf install"
+  assert_not_called "systemctl --global enable"
+  assert_output_not_contains "could not install"
+  [ -z "$(snapshots)" ]
+}
+
 @test "psd: skips without systemd and outside the official repositories" {
   run env SO_INIT=openrc "$SO" -y --only psd
   assert_output_contains "needs systemd user units"

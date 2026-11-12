@@ -46,6 +46,27 @@ setup() { setup_sandbox; }
   assert_output_contains "no /etc/security"
 }
 
+@test "limits: a file an older build wrote still counts as applied" {
+  # Every file carries "Written by system-optimize (VERSION)". That line must
+  # not count as a difference, or an upgrade would show every step as off
+  # (the tray's switches) and rewrite each file, with a snapshot, for a comment.
+  command -v python3 >/dev/null 2>&1 || skip "no python3"
+  run "$SO" -y --only limits
+  [ "$status" -eq 0 ]
+  local f="$SANDBOX/etc/security/limits.d/90-system-optimize.conf"
+  grep -q '^# Written by system-optimize (' "$f"
+  sed -i '1s/.*/# Written by system-optimize (system-optimize 2.0.0 (git 0000000, single file)). Undo: system-optimize --undo/' "$f"
+  run "$SO" -n --only limits
+  [ "$status" -eq 0 ]
+  assert_output_not_contains "would replace"
+  "$SO" --status --json > "$BATS_TEST_TMPDIR/status.json"
+  python3 - "$BATS_TEST_TMPDIR/status.json" <<'PY'
+import json, sys
+steps = {s["name"]: s for s in json.load(open(sys.argv[1]))["steps"]}
+assert steps["limits"]["applied"] is True, steps["limits"]
+PY
+}
+
 @test "trim: fstrim.timer is enabled when there is an SSD; masked or missing is left alone" {
   run "$SO" -y --only trim
   [ "$status" -eq 0 ]

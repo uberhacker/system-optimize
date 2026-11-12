@@ -49,7 +49,39 @@ desktop_user() {
   [ -z "$u" ] || [ "$u" = root ] || printf '%s\n' "$u"
 }
 
-# desktop_kind: gnome, kde, other or none.
+# _desktop_user_session_desktop USER: the Desktop of USER's graphical
+# session, active or not (a locked screen, a second seat), or nothing.
+_desktop_user_session_desktop() {
+  local id d
+  [ -n "$1" ] || return 0
+  for id in $(_desktop_session_ids); do
+    case "$(_desktop_session_prop "$id" Type)" in wayland|x11) ;; *) continue ;; esac
+    [ "$(_desktop_session_prop "$id" Name)" = "$1" ] || continue
+    d=$(_desktop_session_prop "$id" Desktop)
+    [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
+  done
+  return 0
+}
+
+# _desktop_from_shell USER: GNOME or KDE from USER's running shell process,
+# else from the one shell that is installed; nothing when neither tells.
+_desktop_from_shell() {
+  local g=0 k=0
+  if [ -n "$1" ] && has_cmd pgrep; then
+    run pgrep -u "$1" -x gnome-shell >/dev/null 2>&1 && { echo gnome; return 0; }
+    run pgrep -u "$1" -x plasmashell >/dev/null 2>&1 && { echo kde; return 0; }
+  fi
+  [ -x "$(so_path /usr/bin/gnome-shell)" ] && g=1
+  [ -x "$(so_path /usr/bin/plasmashell)" ] && k=1
+  if [ "$g" = 1 ] && [ "$k" = 0 ]; then echo gnome
+  elif [ "$k" = 1 ] && [ "$g" = 0 ]; then echo kde
+  fi
+  return 0
+}
+
+# desktop_kind: gnome, kde, other or none. Under sudo XDG_CURRENT_DESKTOP is
+# gone, so the desktop comes from the active graphical session, then the
+# desktop user's own session, then their running (or the installed) shell.
 desktop_kind() {
   local d="${SO_DESKTOP:-}" id
   if [ -z "$d" ]; then
@@ -57,6 +89,8 @@ desktop_kind() {
     if [ -z "$d" ] && id=$(desktop_session) && [ -n "$id" ]; then
       d=$(_desktop_session_prop "$id" Desktop)
     fi
+    [ -n "$d" ] || d=$(_desktop_user_session_desktop "$(desktop_user)")
+    [ -n "$d" ] || d=$(_desktop_from_shell "$(desktop_user)")
   fi
   d="${d,,}"
   case "$d" in

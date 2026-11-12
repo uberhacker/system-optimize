@@ -182,11 +182,38 @@ def _cron_remove(run):
     return True
 
 
-def next_run(run=_run):
-    """When the timer fires next, as systemd prints it, or None."""
-    if not shutil.which("systemctl"):
+def _cron_daemon_running(run):
+    """A cron daemon runs (cronie's crond, Debian's cron, cronie or fcron)."""
+    if not shutil.which("pgrep"):
+        return True  # can't tell; don't claim it is missing
+    for name in ("crond", "cron", "cronie", "fcron"):
+        if run(["pgrep", "-x", name])[0] == 0:
+            return True
+    return False
+
+
+def _cron_entry(run):
+    """The five cron fields of the agent's crontab line, or None."""
+    if not shutil.which("crontab"):
         return None
-    rc, out, _ = run(["systemctl", "--user", "show", UNIT + ".timer", "--property=NextElapseUSecRealtime",
-                      "--value"])
-    out = out.strip()
-    return out if rc == 0 and out and out != "n/a" else None
+    for line in _cron_lines(run):
+        if CRON_TAG in line:
+            return " ".join(line.split()[:5])
+    return None
+
+
+def next_run(run=_run):
+    """When the agent runs next: the timer's next time as systemd prints it,
+    or its crontab entry (saying so when no cron daemon runs), or None."""
+    if shutil.which("systemctl"):
+        rc, out, _ = run(["systemctl", "--user", "show", UNIT + ".timer", "--property=NextElapseUSecRealtime",
+                          "--value"])
+        out = out.strip()
+        if rc == 0 and out and out != "n/a":
+            return out
+    cron = _cron_entry(run)
+    if cron:
+        if _cron_daemon_running(run):
+            return "by cron (%s)" % cron
+        return "by cron (%s), but no cron daemon is running, so it will not run" % cron
+    return None

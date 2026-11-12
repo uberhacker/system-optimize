@@ -804,7 +804,10 @@ desktop user are skipped with the reason.
 - **GNOME:** adds `scale-monitor-framebuffer` (fractional scaling choices in
   Settings > Displays) and `variable-refresh-rate` (a Variable Refresh Rate
   switch there) to `org.gnome.mutter experimental-features`, keeping every
-  entry already there. They show up after logging out and in. Display modes
+  entry already there. Only the names the installed Mutter still lists as
+  experimental are added: from GNOME 48 variable refresh rate is a regular
+  setting, and the step says so; from GNOME 51 both are built in and the
+  step has nothing to add. They show up after logging out and in. Display modes
   are not changed on GNOME: the step reads each screen's current mode from
   Mutter (read only) and reports its refresh rate and the highest one offered
   at that resolution. Pick it in Settings > Displays > Refresh Rate, which

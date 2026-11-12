@@ -28,6 +28,25 @@ setup() { setup_sandbox; }
   assert_equal "Fedora Linux 43 (Workstation Edition) (kernel 6.17.0-test)" "$(sysinfo_describe_os)"
 }
 
+@test "CPUs: the count comes from /sys/devices/system/cpu/online, which /proc/cpuinfo can disagree with" {
+  load_so
+  mkdir -p "$SANDBOX/sys/devices/system/cpu"
+  echo "0-31" > "$SANDBOX/sys/devices/system/cpu/online"
+  cpu_scan
+  [ "$SO_CPUS" = 32 ]
+  [ "$SO_CPU_MODEL" = "AMD Ryzen AI 9 HX 370" ]
+  echo "0-3,6,8-11" > "$SANDBOX/sys/devices/system/cpu/online"
+  cpu_scan
+  [ "$SO_CPUS" = 9 ]
+  # unreadable: back to counting /proc/cpuinfo
+  echo "garbage" > "$SANDBOX/sys/devices/system/cpu/online"
+  cpu_scan
+  [ "$SO_CPUS" = 8 ]
+  [ "$(cpu_range_count 0)" = 1 ]
+  ! cpu_range_count ""
+  ! cpu_range_count "3-1"
+}
+
 @test "a wireless mouse's battery does not make a laptop; a system battery or a laptop chassis does" {
   load_so
   [ "$SO_IS_PORTABLE" = 0 ]

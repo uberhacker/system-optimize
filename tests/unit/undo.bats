@@ -131,3 +131,19 @@ state() {
   grep -q $'^file\t/etc/security/limits.d/90-system-optimize.conf\t' "$m"
   grep -q $'^unit\tfstrim.timer\t' "$m"
 }
+
+@test "--status --json lists the snapshots as valid JSON, newest first" {
+  command -v python3 >/dev/null 2>&1 || skip "no python3"
+  run "$SO" -y --only limits
+  sleep 1
+  run "$SO" -y --only trim
+  [ "$(snapshots | wc -l)" -eq 2 ]
+  "$SO" --status --json > "$BATS_TEST_TMPDIR/status.json"
+  python3 - "$BATS_TEST_TMPDIR/status.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))          # a stray comma here broke every JSON reader
+ids = [s["id"] for s in d["snapshots"]]
+assert len(ids) == 2, ids
+assert ids == sorted(ids, reverse=True), ids
+PY
+}

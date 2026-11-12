@@ -66,12 +66,11 @@ status_json() {
   done
   prof=$(active_profile)
   printf '},"profile":%s,"snapshots":[' "$(json_str_or_null "$prof")"
-  sep=""
   while IFS=$'\t' read -r id total open steps _ _; do
     due=$(safe_pending_due "$id") || due=""
     [ "$steps" != - ] || steps=""
-    snaps="$sep{\"id\":$(json_str "$id"),\"summary\":$(json_str "$total change(s)${steps:+: $steps}"),\"undone\":$(json_bool "$([ "$open" = 0 ] && echo 1 || echo 0)"),\"open\":$open,\"rollback_due\":$(json_str_or_null "$due")}$snaps"
-    sep=","
+    # newest first: each row goes in front of the ones collected so far
+    snaps="{\"id\":$(json_str "$id"),\"summary\":$(json_str "$total change(s)${steps:+: $steps}"),\"undone\":$(json_bool "$([ "$open" = 0 ] && echo 1 || echo 0)"),\"open\":$open,\"rollback_due\":$(json_str_or_null "$due")}${snaps:+,$snaps}"
   done < <(hist_snapshot_rows)
   printf '%s],"categories":%s,"warnings":%s,"hardware":%s,"helpers_running":%s}\n' "$snaps" \
     "$(categories_json)" "$(warnings_json)" "$(hw_json)" "$(json_word_array "$(helpers_running)")"

@@ -66,23 +66,53 @@ swap_scan() {
   SO_SWAP_KIND=$kind
 }
 
+# cpu_range_count LIST: the number of CPUs in a kernel CPU list such as
+# "0-31" or "0-3,6,8-11"; nothing for an empty or unreadable list.
+cpu_range_count() {
+  local item lo hi n=0
+  local -a items
+  IFS=',' read -r -a items <<< "${1//[[:space:]]/}"
+  for item in "${items[@]}"; do
+    [ -n "$item" ] || continue
+    if [[ "$item" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+      lo=${BASH_REMATCH[1]}; hi=${BASH_REMATCH[2]}
+      [ "$hi" -ge "$lo" ] || return 1
+      n=$((n + hi - lo + 1))
+    elif [[ "$item" =~ ^[0-9]+$ ]]; then
+      n=$((n + 1))
+    else
+      return 1
+    fi
+  done
+  [ "$n" -gt 0 ] && echo "$n"
+}
+
 # cpu_scan: vendor, model, number of online CPUs, frequency driver.
+# The count comes from /sys/devices/system/cpu/online. /proc/cpuinfo is
+# read in one go: bash's read builtin reads a file a few bytes at a time
+# and seeks back, which on /proc/cpuinfo can skip a CPU's block (one run
+# counted 31 and the next 30 on a 32-thread i9-14900KF).
 cpu_scan() {
-  local f line n=0 d
+  local f text line n="" d
   f=$(so_path /proc/cpuinfo)
   SO_CPU_VENDOR=""; SO_CPU_MODEL=""
+  n=$(cpu_range_count "$(read_line "$(so_path /sys/devices/system/cpu/online)" 2>/dev/null)") || n=""
   if [ -r "$f" ]; then
+    text=$(cat -- "$f" 2>/dev/null) || text=""
+    local procs=0
     while IFS= read -r line; do
       case "$line" in
         vendor_id*) [ -n "$SO_CPU_VENDOR" ] || SO_CPU_VENDOR="${line#*: }" ;;
         "model name"*) [ -n "$SO_CPU_MODEL" ] || SO_CPU_MODEL="${line#*: }" ;;
-        processor*) n=$((n + 1)) ;;
+        processor*) procs=$((procs + 1)) ;;
       esac
-    done < "$f"
+    done <<< "$text"
+    [ -n "$n" ] || { [ "$procs" -gt 0 ] && n=$procs; }
   fi
   SO_CPU_VENDOR="${SO_CPU_VENDOR//[^[:print:]]/}"
   SO_CPU_MODEL="${SO_CPU_MODEL//[^[:print:]]/}"
-  if [ "$n" -eq 0 ]; then
+  if [ -z "$n" ]; then
+    n=0
     for d in "$(so_path /sys/devices/system/cpu)"/cpu[0-9]*; do
       [ -d "$d" ] && n=$((n + 1))
     done

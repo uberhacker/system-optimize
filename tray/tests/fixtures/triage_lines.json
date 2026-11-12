@@ -1,0 +1,1047 @@
+[
+{
+"kind": "memory",
+"severity": 2,
+"text": "Out of memory: Killed process 12 (dotnet) total-vm:4242kB, anon-rss:3kB, file-rss:7kB"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "Out of memory: Killed process 3 (node) total-vm:7kB, anon-rss:4242kB, file-rss:4242kB"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "Out of memory: Killed process 9000000 (firefox) total-vm:7kB, anon-rss:26kB, file-rss:9000000kB"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "Out of memory: Killed process 3 (gnome-shell) total-vm:131073kB, anon-rss:12kB, file-rss:77kB"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "Memory cgroup out of memory: Killed process 7 (java) total-vm:9000000kB, anon-rss:9000000kB"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "Memory cgroup out of memory: Killed process 9000000 (dotnet) total-vm:26kB, anon-rss:12345kB"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "Memory cgroup out of memory: Killed process 122 (llama-server) total-vm:77kB, anon-rss:26kB"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "Memory cgroup out of memory: Killed process 131073 (kworker/5:1) total-vm:12345kB, anon-rss:122kB"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "llama-server invoked oom-killer: gfp_mask=0x12(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=122"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "postgres invoked oom-killer: gfp_mask=0x131073(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=9000000"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "chrome invoked oom-killer: gfp_mask=0x7(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=7"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "chrome invoked oom-killer: gfp_mask=0x9000000(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=12345"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "systemd-oomd[12345]: Killed /user.slice/user-1000.slice/app-python3.scope due to memory pressure for /user.slice being 122.12% > 50.00%"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "systemd-oomd[77]: Killed /user.slice/user-1000.slice/app-gnome-shell.scope due to memory pressure for /user.slice being 12.26% > 50.00%"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "systemd-oomd[12345]: Killed /user.slice/user-1000.slice/app-chrome.scope due to memory pressure for /user.slice being 4242.131073% > 50.00%"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "systemd-oomd[122]: Killed /user.slice/user-1000.slice/app-llama-server.scope due to memory pressure for /user.slice being 4242.26% > 50.00%"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "earlyoom[26]: low memory! at or below SIGTERM limits: mem 3.00%, swap 12345.00%; sending SIGTERM to process 9000000 \"llama-server\""
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "earlyoom[4242]: low memory! at or below SIGTERM limits: mem 131073.00%, swap 122.00%; sending SIGTERM to process 9000000 \"python3\""
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "earlyoom[131073]: low memory! at or below SIGTERM limits: mem 4242.00%, swap 4242.00%; sending SIGTERM to process 4242 \"gnome-shell\""
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "earlyoom[26]: low memory! at or below SIGTERM limits: mem 7.00%, swap 26.00%; sending SIGTERM to process 12345 \"llama-server\""
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "llama-server: page allocation failure: order:3, mode:0x9000000(GFP_KERNEL|__GFP_COMP), nodemask=(null)"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "python3: page allocation failure: order:7, mode:0x26(GFP_KERNEL|__GFP_COMP), nodemask=(null)"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "kworker/5:1: page allocation failure: order:9000000, mode:0x122(GFP_KERNEL|__GFP_COMP), nodemask=(null)"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "chrome: page allocation failure: order:12345, mode:0x12345(GFP_KERNEL|__GFP_COMP), nodemask=(null)"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "dotnet: page allocation stalls for 77ms, order:12345, mode:0x12(GFP_KERNEL)"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "chrome: page allocation stalls for 131073ms, order:3, mode:0x131073(GFP_KERNEL)"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "dotnet: page allocation stalls for 12ms, order:122, mode:0x26(GFP_KERNEL)"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "java: page allocation stalls for 26ms, order:4242, mode:0x26(GFP_KERNEL)"
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "firefox.service: A process of this unit has been killed by the OOM killer."
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "python3.service: A process of this unit has been killed by the OOM killer."
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "node.service: Failed with result 'oom-kill'."
+},
+{
+"kind": "memory",
+"severity": 2,
+"text": "java.service: Failed with result 'oom-kill'."
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "zram12345: Decompression failed! err=-122, page=7"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "zram4242: Decompression failed! err=-122, page=7"
+},
+{
+"kind": "memory",
+"severity": 1,
+"text": "zram12: Decompression failed! err=-12, page=3"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "blk_update_request: I/O error, dev sda, sector 26 op 0x0:(READ) flags 0x0 phys_seg 77 prio class 0"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "I/O error, dev nvme1n1p2, sector 12 op 0x1:(WRITE) flags 0x12345 phys_seg 26 prio class 2"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "blk_update_request: I/O error, dev nvme1n1p2, sector 12 op 0x0:(READ) flags 0x0 phys_seg 4242 prio class 0"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "blk_update_request: I/O error, dev sdc, sector 122 op 0x0:(READ) flags 0x0 phys_seg 122 prio class 0"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "Buffer I/O error on dev nvme1n1p2, logical block 131073, async page read"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "Buffer I/O error on dev sdb1, logical block 131073, async page read"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "Buffer I/O error on dev sdb1, logical block 7, lost async page write"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "Buffer I/O error on dev nvme1n1p2, logical block 77, lost async page write"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "EXT4-fs error (device nvme1n1p2): ext4_find_entry:131073: inode #131073: comm python3: reading directory lblock 0"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "EXT4-fs (dm-3): Remounting filesystem read-only"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "EXT4-fs error (device dm-3): ext4_find_entry:7: inode #77: comm node: reading directory lblock 0"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "EXT4-fs (dm-7): Remounting filesystem read-only"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "BTRFS critical (device sdc): corrupt leaf: root=9000000 block=12 slot=3"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "BTRFS error (device sdb1): bdev /dev/sdb1 errs: wr 77, rd 3, flush 0, corrupt 12, gen 0"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "BTRFS critical (device sdb1): corrupt leaf: root=12345 block=131073 slot=12"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "BTRFS error (device sda): bdev /dev/sda errs: wr 3, rd 3, flush 0, corrupt 131073, gen 0"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "XFS (dm-7): Corruption detected. Unmount and run xfs_repair"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "XFS (dm-26): Corruption detected. Unmount and run xfs_repair"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "XFS (dm-122): Corruption detected. Unmount and run xfs_repair"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "XFS (dm-4242): Corruption detected. Unmount and run xfs_repair"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "nvme nvme77: I/O tag 9000000 (0x26) QID 77 timeout, reset controller"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "nvme nvme12345: controller is down; will reset: CSTS=0x3, PCI_STATUS=0x77"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "nvme nvme77: I/O 26 QID 122 timeout, aborting"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "nvme nvme12345: I/O 77 QID 131073 timeout, aborting"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "ata7: hard resetting link"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "ata77.00: failed command: READ FPDMA QUEUED"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "ata131073.00: exception Emask 0x0 SAct 0x12 SErr 0x0 action 0x6 frozen"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "ata131073.00: exception Emask 0x0 SAct 0x4242 SErr 0x0 action 0x6 frozen"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "sd 3:0:0:0: [nvme0n1] tag#3 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_SENSE cmd_age=12s"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "sd 3:0:0:0: [sdb1] tag#131073 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_SENSE cmd_age=26s"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "sd 131073:0:0:0: [nvme0n1] tag#131073 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_SENSE cmd_age=7s"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "sd 77:0:0:0: [sdc] tag#26 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_SENSE cmd_age=26s"
+},
+{
+"kind": "disk",
+"severity": 1,
+"text": "smartd[7]: Device: /dev/dm-3 [SAT], SMART Usage Attribute: 5 Reallocated_Sector_Ct changed from 12345 to 77"
+},
+{
+"kind": "disk",
+"severity": 1,
+"text": "smartd[122]: Device: /dev/dm-3 [SAT], 77 Currently unreadable (pending) sectors"
+},
+{
+"kind": "disk",
+"severity": 1,
+"text": "smartd[3]: Device: /dev/sdc [SAT], SMART Usage Attribute: 5 Reallocated_Sector_Ct changed from 12345 to 77"
+},
+{
+"kind": "disk",
+"severity": 1,
+"text": "smartd[131073]: Device: /dev/nvme1n1p2 [SAT], SMART Usage Attribute: 5 Reallocated_Sector_Ct changed from 77 to 12345"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "md: super_written gets error=-5 on nvme1n1p2"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "md: super_written gets error=-5 on dm-3"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "md: super_written gets error=-5 on sda"
+},
+{
+"kind": "disk",
+"severity": 2,
+"text": "md/raid1:md131073: Disk failure on sdb1, disabling device. Operation continuing on 1 devices."
+},
+{
+"kind": "disk",
+"severity": 1,
+"text": "INFO: task kworker/5:1:122 blocked for more than 26 seconds."
+},
+{
+"kind": "disk",
+"severity": 1,
+"text": "INFO: task kworker/5:1:3 blocked for more than 12345 seconds."
+},
+{
+"kind": "disk",
+"severity": 1,
+"text": "task jbd2/nvme0n1-8:122 blocked for more than 4242 seconds"
+},
+{
+"kind": "disk",
+"severity": 1,
+"text": "task jbd2/sda-8:122 blocked for more than 4242 seconds"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "CPU13: Core temperature above threshold, cpu clock throttled (total events = 4242)"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "CPU18: Package temperature above threshold, cpu clock throttled (total events = 3)"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "CPU30: Core temperature above threshold, cpu clock throttled (total events = 3)"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "CPU16: Core temperature above threshold, cpu clock throttled (total events = 122)"
+},
+{
+"kind": "thermal",
+"severity": 2,
+"text": "thermal thermal_zone26: critical temperature reached, shutting down"
+},
+{
+"kind": "thermal",
+"severity": 2,
+"text": "thermal thermal_zone12: critical temperature reached (7 C), shutting down"
+},
+{
+"kind": "thermal",
+"severity": 2,
+"text": "thermal thermal_zone122: critical temperature reached, shutting down"
+},
+{
+"kind": "thermal",
+"severity": 2,
+"text": "thermal thermal_zone7: critical temperature reached (12 C), shutting down"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "mce: CPU1: Core temperature is above threshold, cpu clock is throttled (total events = 122)"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "mce: CPU24: Package temperature is above threshold, cpu clock is throttled"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "mce: CPU17: Package temperature is above threshold, cpu clock is throttled"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "mce: CPU5: Package temperature is above threshold, cpu clock is throttled"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "nvidia: GPU has reached its slowdown temperature of 7 C, performance reduced"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "thinkpad_acpi: THERMAL ALERT: battery is too hot!"
+},
+{
+"kind": "thermal",
+"severity": 1,
+"text": "thinkpad_acpi: THERMAL EMERGENCY: a sensor reports something is extremely hot!"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "watchdog: BUG: soft lockup - CPU#9 stuck for 12345s! [llama-server:26]"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "watchdog: BUG: soft lockup - CPU#16 stuck for 9000000s! [postgres:26]"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "watchdog: BUG: soft lockup - CPU#29 stuck for 131073s! [java:131073]"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "watchdog: BUG: soft lockup - CPU#23 stuck for 7s! [kworker/5:1:3]"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "NMI watchdog: Watchdog detected hard LOCKUP on cpu 3"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "NMI watchdog: Watchdog detected hard LOCKUP on cpu 4"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "watchdog: Watchdog detected hard LOCKUP on cpu 16"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "NMI watchdog: Watchdog detected hard LOCKUP on cpu 13"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "rcu: INFO: rcu_preempt self-detected stall on CPU"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "rcu: INFO: rcu_sched detected stalls on CPUs/tasks: { 4-... } (detected by 4, t=4242 jiffies)"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "rcu: INFO: rcu_sched detected stalls on CPUs/tasks: { 5-... } (detected by 5, t=7 jiffies)"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "rcu: INFO: rcu_sched detected stalls on CPUs/tasks: { 22-... } (detected by 22, t=77 jiffies)"
+},
+{
+"kind": "cpu",
+"severity": 1,
+"text": "sched: RT throttling activated for rt_rq of CPU 12"
+},
+{
+"kind": "cpu",
+"severity": 1,
+"text": "sched: RT throttling activated for rt_rq of CPU 27"
+},
+{
+"kind": "cpu",
+"severity": 1,
+"text": "sched: RT throttling activated"
+},
+{
+"kind": "cpu",
+"severity": 1,
+"text": "sched: RT throttling activated for rt_rq of CPU 0"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "mce: [Hardware Error]: Machine check events logged on CPU 5"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "mce: [Hardware Error]: CPU 10: Machine Check: 0 Bank 131073: 12"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "mce: [Hardware Error]: Machine check events logged on CPU 31"
+},
+{
+"kind": "cpu",
+"severity": 2,
+"text": "mce: [Hardware Error]: Machine check events logged on CPU 30"
+},
+{
+"kind": "cpu",
+"severity": 1,
+"text": "TSC found unstable after boot, most likely due to broken BIOS"
+},
+{
+"kind": "cpu",
+"severity": 1,
+"text": "clocksource: timekeeping watchdog on CPU12: Marking clocksource 'tsc' as unstable because the skew is too large"
+},
+{
+"kind": "cpu",
+"severity": 1,
+"text": "clocksource: timekeeping watchdog on CPU2: Marking clocksource 'tsc' as unstable because the skew is too large"
+},
+{
+"kind": "cpu",
+"severity": 1,
+"text": "clocksource: timekeeping watchdog on CPU29: Marking clocksource 'tsc' as unstable because the skew is too large"
+},
+{
+"kind": "network",
+"severity": 2,
+"text": "NETDEV WATCHDOG: enp5s0 (r8169): transmit queue 0 timed out"
+},
+{
+"kind": "network",
+"severity": 2,
+"text": "NETDEV WATCHDOG: enp5s0 (igc): transmit queue 7 timed out 122 ms"
+},
+{
+"kind": "network",
+"severity": 2,
+"text": "NETDEV WATCHDOG: enp5s0 (igc): transmit queue 3 timed out 7 ms"
+},
+{
+"kind": "network",
+"severity": 2,
+"text": "NETDEV WATCHDOG: wlp3s0 (igc): transmit queue 12345 timed out 77 ms"
+},
+{
+"kind": "network",
+"severity": 1,
+"text": "iwlwifi 0000:00:14.3: Hardware error detected. Restarting."
+},
+{
+"kind": "network",
+"severity": 1,
+"text": "iwlwifi 0000:00:14.3: Microcode SW error detected. Restarting 0x0."
+},
+{
+"kind": "network",
+"severity": 1,
+"text": "e1000e 0000:00:1f.6 eth0: Detected Hardware Unit Hang"
+},
+{
+"kind": "network",
+"severity": 1,
+"text": "r8169 0000:7:00.0 enp5s0: rtl_rxtx_empty_cond == 0 (loop: 122, delay: 100)."
+},
+{
+"kind": "network",
+"severity": 1,
+"text": "r8169 0000:12:00.0 wlp3s0: rtl_rxtx_empty_cond == 0 (loop: 77, delay: 100)."
+},
+{
+"kind": "network",
+"severity": 1,
+"text": "ath10k_pci 0000:3:00.0: firmware crashed! (guid 3)"
+},
+{
+"kind": "network",
+"severity": 1,
+"text": "nf_conntrack: nf_conntrack: table full, dropping packet"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "mod.raop-sink: sess.latency.msec 4242.000 should be an integer multiple of rtp.ptime 3.000"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "mod.raop-sink: sess.latency.msec 122.000 should be an integer multiple of rtp.ptime 12345.000"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "mod.raop-sink: sess.latency.msec 131073.000 should be an integer multiple of rtp.ptime 77.000"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "mod.raop-sink: sess.latency.msec 12345.000 should be an integer multiple of rtp.ptime 12.000"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "asked to register item /org/freedesktop/secrets/collection/login/122, but it's already registered"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "asked to register item /org/freedesktop/secrets/collection/login/4242, but it's already registered"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "asked to register item /org/freedesktop/secrets/collection/login/12345, but it's already registered"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "asked to register item /org/freedesktop/secrets/collection/login/131073, but it's already registered"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "chrome.service: Scheduled restart job, restart counter is at 12345."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "java.service: Scheduled restart job, restart counter is at 12345."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "llama-server.service: Scheduled restart job, restart counter is at 9000000."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "dotnet.service: Scheduled restart job, restart counter is at 9000000."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Couldn't map window 0x26 as subsurface because its parent is not mapped."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Can't update stage views actor unnamed [ClutterActor] is on because it needs an allocation."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Couldn't map window 0x77 as subsurface because its parent is not mapped."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Couldn't map window 0x12345 as subsurface because its parent is not mapped."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Service file '/usr/share//dbus-1/services/org.java.service' is not named after the D-Bus name 'org.freedesktop.Notifications'."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Service file '/usr/share//dbus-1/services/org.llama-server.service' is not named after the D-Bus name 'org.freedesktop.Notifications'."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Ignoring duplicate name 'org.gnome.postgres' in service file"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Service file '/usr/share//dbus-1/services/org.gnome-shell.service' is not named after the D-Bus name 'org.freedesktop.Notifications'."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "/boot/loader/entries/12345.conf:12345: Unknown line 'grub_class', ignoring."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "/boot/loader/entries/3.conf:4242: Unknown line 'grub_class', ignoring."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "/boot/loader/entries/12.conf:26: Unknown line 'grub_class', ignoring."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "/boot/loader/entries/12345.conf:131073: Unknown line 'grub_class', ignoring."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "pam_unix(sudo:auth): conversation failed"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "pam_systemd(sudo:session): Failed to check if /run/user/0/bus exists, ignoring: Permission denied"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "gkr-pam: unable to locate daemon control file"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "This plugin does not support raise()"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Failed to obtain an access token for the calendar account: credentials not found in keyring"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "source_credentials_required_cb: Failed to authenticate 'Birthdays'"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "usb 9000000-9000000: reset high-speed USB device number 122 using xhci_hcd"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "usb 12345-122: device descriptor read/64, error -71"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "usb 122-9000000: device descriptor read/64, error -71"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "usb 3-26: device descriptor read/64, error -71"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Bluetooth: hci0: unexpected event for opcode 0x4242"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Bluetooth: hci0: Malformed MSFT vendor event: 0x122"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Bluetooth: hci0: Malformed MSFT vendor event: 0x3"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Bluetooth: hci0: unexpected event for opcode 0x7"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "ACPI BIOS Error (bug): Could not resolve symbol [\\_SB.PC00.DGPV], AE_NOT_FOUND"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "ACPI Warning: SystemIO range conflicts with OpRegion"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "xdg-desktop-portal: Realtime error: Could not get pidns for pid 12345"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "xdg-desktop-portal: Realtime error: Could not get pidns for pid 131073"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "xdg-desktop-portal: Realtime error: Could not get pidns for pid 4242"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "xdg-desktop-portal: Realtime error: Could not get pidns for pid 7"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "audit: type=1400 apparmor=\"DENIED\" operation=\"open\" profile=\"snap.java\" name=\"/etc/fstab\""
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "audit: type=1400 apparmor=\"DENIED\" operation=\"open\" profile=\"snap.firefox\" name=\"/etc/fstab\""
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "audit: backlog limit exceeded"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "audit: type=1400 apparmor=\"DENIED\" operation=\"open\" profile=\"snap.gnome-shell\" name=\"/etc/fstab\""
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "Process 12 (python3) of user 1000 dumped core."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "dotnet[9000000]: segfault at 9000000 ip 3 sp 122 error 4 in libdotnet.so"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "firefox[26]: segfault at 122 ip 4242 sp 9000000 error 4 in libfirefox.so"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "llama-server[131073]: segfault at 3 ip 131073 sp 131073 error 4 in libllama-server.so"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "wireplumber: failed to activate item: Object activation aborted: proxy destroyed"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "pipewire: xrun on node 77, delay 131073us"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "pipewire: xrun on node 3, delay 9000000us"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "pipewire: xrun on node 7, delay 12345us"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name is not activatable"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "dbus-daemon: Activated service 'org.java' failed: Process exited with status 1"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "dbus-daemon: Activated service 'org.dotnet' failed: Process exited with status 1"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "dbus-daemon: Activated service 'org.python3' failed: Process exited with status 1"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "gnome-shell: JS ERROR: TypeError: this._dotnet is undefined"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "gnome-shell: Window manager warning: Overwriting existing binding of keysym 77"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "gnome-shell: Window manager warning: Overwriting existing binding of keysym 9000000"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "gnome-shell: Window manager warning: Overwriting existing binding of keysym 12345"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "sshd[3]: error: kex_exchange_identification: Connection closed by remote host"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "sshd[9000000]: error: kex_exchange_identification: Connection closed by remote host"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "sudo: dotnet : TTY=pts/122 ; PWD=/home/dotnet ; USER=root ; COMMAND=/usr/bin/ls"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "sshd[26]: error: kex_exchange_identification: Connection closed by remote host"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "cups.service: Found left-over process 9000000 (postgres) in control group while starting unit. Ignoring."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "systemd[1]: /usr/lib/systemd/system/node.service:122: Unknown key 'Foo' in section [Service], ignoring."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "systemd[1]: /usr/lib/systemd/system/postgres.service:122: Unknown key 'Foo' in section [Service], ignoring."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "cups.service: Found left-over process 12345 (chrome) in control group while starting unit. Ignoring."
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "firewalld: WARNING: COMMAND_FAILED: '/usr/sbin/iptables -w10 -D FORWARD' failed"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "NetworkManager: <warn> dhcp4 (eth0): request timed out"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "NetworkManager: <warn> dhcp4 (eno1): request timed out"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "NetworkManager: <warn> dhcp4 (wlp3s0): request timed out"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "kernel: workqueue: java hogged CPU for >122us 9000000 times, consider switching to WQ_UNBOUND"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "kernel: kauditd_printk_skb: 3 callbacks suppressed"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "kernel: workqueue: gnome-shell hogged CPU for >131073us 9000000 times, consider switching to WQ_UNBOUND"
+},
+{
+"kind": "none",
+"severity": 0,
+"text": "kernel: workqueue: python3 hogged CPU for >122us 3 times, consider switching to WQ_UNBOUND"
+}
+]

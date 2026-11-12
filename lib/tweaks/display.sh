@@ -18,6 +18,11 @@
 #   GNOME  adds 'scale-monitor-framebuffer' (fractional scaling in Settings)
 #          and 'variable-refresh-rate' (a VRR switch in Settings > Displays)
 #          to org.gnome.mutter experimental-features, keeping what is there.
+#          Only the names the installed Mutter's schema still lists are
+#          added (gsettings range): from GNOME 48 VRR is a regular setting,
+#          and gsettings refuses the whole list when one name is unknown.
+#          GNOME 51 has no experimental-features key at all: both are
+#          built in, and the step reports itself as in place.
 #          Display modes are not changed on GNOME (Mutter keeps them in the
 #          user's monitors.xml and the Settings app is the safe way to pick
 #          one); the step reports each screen's refresh rate and the highest
@@ -195,20 +200,44 @@ _display_gnome_report() {
   fi
 }
 
+# _display_gnome_allowed USER: the names Mutter's schema accepts in
+# experimental-features, one per line; nothing when gsettings cannot say
+# (then every name is tried, as before).
+_display_gnome_allowed() {
+  so_as_user "$1" gsettings range org.gnome.mutter experimental-features 2>/dev/null | sed -n "s/^'\(.*\)'$/\1/p"
+}
+
 _display_gnome() {
-  local user="$1" cur want f items rc=0 missing="" report
-  if ! has_cmd gsettings || ! cur=$(gsettings_get "$user" org.gnome.mutter experimental-features); then
-    step_skip "GNOME without org.gnome.mutter experimental-features (gsettings) for $user"
+  local user="$1" cur want f items rc=0 missing="" regular="" allowed report
+  if ! has_cmd gsettings; then
+    step_skip "GNOME without gsettings for $user"
+    return 0
+  fi
+  if ! cur=$(gsettings_get "$user" org.gnome.mutter experimental-features); then
+    # Mutter 51 dropped the key: both are regular settings there. With the
+    # schema present and the key gone there is nothing to turn on, which is
+    # "on", not "skipped" (the tray would show the step as off for good).
+    if so_as_user "$user" gsettings list-keys org.gnome.mutter >/dev/null 2>&1; then
+      step_ok "fractional scaling and VRR are built into this GNOME; $(_display_gnome_report "$user")"
+    else
+      step_skip "GNOME without the org.gnome.mutter settings (gsettings) for $user"
+    fi
     return 0
   fi
   items=$(display_strv_items "$cur" | tr '\n' ' ')
+  allowed=$(_display_gnome_allowed "$user" | tr '\n' ' ')
   want="$items"
   for f in $SO_DISPLAY_MUTTER_FEATURES; do
     list_has "$items" "$f" && continue
+    if [ -n "$allowed" ] && ! list_has "$allowed" "$f"; then
+      regular+="${regular:+ and }$f"     # no longer experimental: a regular setting here
+      continue
+    fi
     want+=" $f"
     missing+="${missing:+, }$f"
   done
   report=$(_display_gnome_report "$user")
+  [ -z "$regular" ] || log_detail "$regular is a regular setting on this GNOME, not an experimental feature"
   if [ -z "$missing" ]; then
     step_ok "fractional scaling and VRR already offered; $report"
     return 0
@@ -221,7 +250,7 @@ _display_gnome() {
   if [ "$SO_DRY_RUN" = 1 ]; then
     step_dry "would add $missing to Mutter's experimental features; $report"
   else
-    step_updated "added $missing (log out and in for the Settings switches); $report"
+    step_updated "added $missing (log out and in for the Settings switches); ${regular:+$regular is a regular setting on this GNOME; }$report"
   fi
 }
 

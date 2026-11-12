@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
     parseJsonLine, panelLabel, readoutLines, featureEntries, actionsAvailable,
     resultMessage, categories, categoryCount, themeFromConfig, configValue,
-    gpuMemoryLine, PressureAlerts, warningLines,
+    gpuMemoryLine, PressureAlerts, warningLines, quickRows,
 } from '../system-optimize@bradvrudney.github.io/lib.js';
 
 const sample = {
@@ -146,4 +146,11 @@ test('warningLines merges and deduplicates', () => {
 test('configValue', () => {
     assert.equal(configValue('THEME=dark\nPSI_ALERTS=0\n', 'PSI_ALERTS', '1'), '0');
     assert.equal(configValue('', 'PSI_ALERTS', '1'), '1');
+});
+
+test('quickRows gives the same rows as the tray app (shared fixture)', async () => {
+    const {readFileSync} = await import('node:fs');
+    const url = new URL('../../tray/tests/fixtures/quick_rows.json', import.meta.url);
+    for (const c of JSON.parse(readFileSync(url, 'utf8')))
+        assert.deepEqual(quickRows(c.sample, c.info, c.proposal, c.alerts), c.rows, c.name);
 });

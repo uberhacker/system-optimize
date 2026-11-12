@@ -11,6 +11,7 @@ comes from the tray's own history.
 Reading only: nothing here starts, configures or writes to PCP.
 """
 
+import atexit
 import csv
 import glob
 import io
@@ -81,13 +82,39 @@ def parse_pmrep_csv(text):
     return out
 
 
+_live = set()      # pmrep processes still reading
+
+
+def stop_readers():
+    """End every pmrep still running. Reading a month of archives takes most
+    of a minute and a lot of disk I/O; when the window closes (the worker is
+    a daemon thread) the reader must go with it, not finish on its own."""
+    for proc in list(_live):
+        try:
+            proc.kill()
+        except OSError:
+            pass
+
+
+atexit.register(stop_readers)
+
+
 def _run(argv, timeout=120):
     try:
-        res = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False,
-                             env=dict(os.environ, LC_ALL="C"), stdin=subprocess.DEVNULL)
-    except (OSError, subprocess.SubprocessError):
+        proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+                                text=True, env=dict(os.environ, LC_ALL="C"))
+    except OSError:
         return None
-    return res.stdout if res.returncode == 0 else None
+    _live.add(proc)
+    try:
+        out, _ = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
+        return None
+    finally:
+        _live.discard(proc)
+    return out if proc.returncode == 0 else None
 
 
 class PcpSource:

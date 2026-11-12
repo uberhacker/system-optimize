@@ -26,9 +26,10 @@ METRICS = {
     "gpu_mem": ("GPU memory used", "%", ("gpu", "mem_percent"), None),
 }
 HOURLY_DAYS = 90
+MINUTE_HOURS = 26      # per-minute rows, for the full view's last hour and last day
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS rollup (
-  period TEXT NOT NULL,          -- 'hour' | 'day'
+  period TEXT NOT NULL,          -- 'minute' | 'hour' | 'day'
   start  INTEGER NOT NULL,       -- unix time of the bucket start (local midnight for days)
   metric TEXT NOT NULL,
   sum REAL NOT NULL, n INTEGER NOT NULL, min REAL NOT NULL, max REAL NOT NULL,
@@ -88,7 +89,7 @@ class History:
 
     def record(self, sample, ts=None):
         ts = int(ts if ts is not None else sample.get("time") or time.time())
-        buckets = (("hour", ts - ts % 3600), ("day", day_start(ts)))
+        buckets = (("minute", ts - ts % 60), ("hour", ts - ts % 3600), ("day", day_start(ts)))
         with self.db:
             for key, (_, _, where, _) in METRICS.items():
                 v = _pick(sample, where)
@@ -104,6 +105,7 @@ class History:
         now = now or time.time()
         with self.db:
             self.db.execute("DELETE FROM rollup WHERE period='hour' AND start < ?", (int(now - HOURLY_DAYS * 86400),))
+            self.db.execute("DELETE FROM rollup WHERE period='minute' AND start < ?", (int(now - MINUTE_HOURS * 3600),))
 
     def series(self, metric, period="day", since=None):
         """[(start, avg, min, max, n)] oldest first."""
@@ -162,7 +164,7 @@ class Recorder:
             if self.hist is None:
                 self.hist = History(self.path)
             self.hist.record(sample, ts=now)
-            if now - self.last_prune > 86400:
+            if now - self.last_prune > 3600:
                 self.hist.prune(now)
                 self.last_prune = now
         except (sqlite3.Error, OSError):
@@ -243,3 +245,45 @@ def resource_report(hist, metric, changes, now=None, days=30):
         "periods": periods,
         "effects": effects,
     }
+
+
+# -- the Overview's activity charts -------------------------------------------
+
+# key, label, seconds back, the rows read, seconds from a row's start to its middle
+RANGES = (
+    ("hour", "Last hour", 3600, "minute", 30),
+    ("day", "Last 24 hours", 86400, "minute", 30),
+    ("week", "Last 7 days", 7 * 86400, "hour", 1800),
+    ("month", "Last 30 days", 30 * 86400, "day", 43200),
+)
+
+
+def activity(hist, metrics, key, now=None):
+    """{metric: [(time, average)]} over one of RANGES, and its (start, end)."""
+    _, _, span, period, mid = next(r for r in RANGES if r[0] == key)
+    now = int(now or time.time())
+    def read(period, mid):
+        return {m: [(start + mid, avg) for start, avg, *_ in hist.series(m, period, now - span - 2 * mid)
+                    if start + mid >= now - span] for m in metrics}
+    out = read(period, mid)
+    if key == "day" and not any(out.values()):
+        out = read("hour", 1800)      # recorded before per-minute rows were kept
+    return out, (now - span, now)
+
+
+def change_markers(changes):
+    """[(time, 'sysctl, thp')] for a chart: the changes of one run (made
+    within an hour of each other) share a marker that names their steps."""
+    marks = sorted(((parse_time(c.get("time")), c) for c in changes or []), key=lambda m: (m[0] is None, m[0] or 0))
+    marks = [m for m in marks if m[0] is not None]
+    groups = []
+    for t, c in marks:
+        if groups and t - groups[-1][0] < 3600:
+            groups[-1][1].append(c)
+        else:
+            groups.append((t, [c]))
+    out = []
+    for t, cs in groups:
+        names = sorted({c.get("step") or "" for c in cs} - {""})
+        out.append((t, ", ".join(names) or "settings changed"))
+    return out

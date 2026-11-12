@@ -111,7 +111,12 @@ if [ "$ram_mb" -lt "$MIN_RAM_MB" ]; then
     warn "this machine has $((ram_mb / 1024)) GB of RAM; a 4B model needs about 3-3.5 GB while it runs."
     confirm "Set up the agent anyway?" || exit 1
 fi
-say "RAM: $((ram_mb / 1024)) GB total, $((avail_mb / 1024)) GB available now (the 4B model uses about 3-3.5 GB while it runs)."
+# Installed RAM the way system-optimize reports it: MemTotal rounded up to
+# whole GiB, and above 4 GiB to an even number (firmware and the kernel keep
+# some, so a 96 GiB machine shows about 94 GiB in MemTotal).
+ram_gib=$(( (ram_mb + 1023) / 1024 ))
+[ "$ram_gib" -gt 4 ] && [ $((ram_gib % 2)) = 1 ] && ram_gib=$((ram_gib + 1))
+say "RAM: $ram_gib GiB, $((avail_mb / 1024)) GiB available now (the 4B model uses about 3-3.5 GB while it runs)."
 
 # Ollama.
 if ! command -v ollama >/dev/null 2>&1; then

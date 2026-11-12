@@ -807,6 +807,12 @@ psd_step() {
       step_skip "profile-sync-daemon is not in this distribution's own repositories"
       return 0
     fi
+    # Releases drop it (Fedora 44's repositories have no match), so ask the
+    # repositories rather than trust the list above.
+    if ! pkg_available profile-sync-daemon; then
+      step_skip "profile-sync-daemon is not in the configured repositories of ${SO_OS_NAME:-this system}"
+      return 0
+    fi
     pkg_add profile-sync-daemon || { step_fail "could not install profile-sync-daemon"; return 1; }
     changed=1
     notes+=("$([ "$SO_DRY_RUN" = 1 ] && echo "would install" || echo "installed") profile-sync-daemon")

@@ -54,6 +54,7 @@ INST_STEPS=()
 declare -gA INST_KIND=() INST_CAT=() INST_TITLE=() INST_SUMMARY=() INST_FLAGS=()
 declare -gA INST_PICK=()     # component -> 1
 INST_EXCLUDED=()             # "name<TAB>why", left out of a full install
+INST_NOT_HERE=()             # "name<TAB>why", steps for hardware this machine lacks
 INST_APPLY="${INST_APPLY:-ask}"
 INST_C_B="" INST_C_DIM="" INST_C_OK="" INST_C_WARN="" INST_C_HEAD="" INST_C_OFF=""
 
@@ -136,8 +137,32 @@ inst_user_home() {
   printf '%s\n' "${h:-/home/$u}"
 }
 
+# inst_desktop: gnome, kde, other or none. sudo drops XDG_CURRENT_DESKTOP,
+# so the desktop also comes from the user's graphical session (loginctl),
+# their running shell, or the one shell that is installed.
 inst_desktop() {
-  local d="${SO_DESKTOP:-${XDG_CURRENT_DESKTOP:-}}"
+  local d="${SO_DESKTOP:-${XDG_CURRENT_DESKTOP:-}}" u id
+  if [ -z "$d" ]; then
+    u=$(inst_user)
+    if command -v loginctl >/dev/null 2>&1; then
+      for id in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{ print $1 }'); do
+        case "$(loginctl show-session "$id" -p Type --value 2>/dev/null)" in wayland|x11) ;; *) continue ;; esac
+        [ "$(loginctl show-session "$id" -p Name --value 2>/dev/null)" = "$u" ] || continue
+        d=$(loginctl show-session "$id" -p Desktop --value 2>/dev/null)
+        [ -z "$d" ] || break
+      done
+    fi
+    if [ -z "$d" ] && command -v pgrep >/dev/null 2>&1; then
+      if pgrep -u "$u" -x gnome-shell >/dev/null 2>&1; then d=gnome
+      elif pgrep -u "$u" -x plasmashell >/dev/null 2>&1; then d=kde
+      fi
+    fi
+    if [ -z "$d" ]; then
+      if [ -x "${SO_ROOT:-}/usr/bin/gnome-shell" ] && [ ! -x "${SO_ROOT:-}/usr/bin/plasmashell" ]; then d=gnome
+      elif [ -x "${SO_ROOT:-}/usr/bin/plasmashell" ] && [ ! -x "${SO_ROOT:-}/usr/bin/gnome-shell" ]; then d=kde
+      fi
+    fi
+  fi
   d="${d,,}"
   case "$d" in
     *gnome*|*ubuntu*|*pop*) echo gnome ;;
@@ -159,6 +184,15 @@ inst_disk_kb() {
 }
 
 inst_gib() { awk -v k="${1:-0}" 'BEGIN { printf "%.1f GiB", k / 1048576 }'; }
+
+# inst_ram: installed RAM as system-optimize reports it (MemTotal rounded up
+# to whole GiB, and above 4 GiB to an even number), e.g. "96 GiB".
+inst_ram() {
+  local g
+  g=$(( ($(inst_ram_kb) + 1048575) / 1048576 ))
+  [ "$g" -gt 4 ] && [ $((g % 2)) = 1 ] && g=$((g + 1))
+  printf '%s GiB\n' "$g"
+}
 
 # inst_systemd_running: systemd is PID 1. Having systemctl is not enough
 # (MX Linux ships it beside SysV init). SO_INSTALL_INIT=systemd|other
@@ -322,6 +356,41 @@ inst_full_why() {
   return 0
 }
 
+# inst_has_amdgpu: a GPU driven by amdgpu (SO_INSTALL_AMDGPU=1|0 overrides).
+inst_has_amdgpu() {
+  case "${SO_INSTALL_AMDGPU:-}" in 1) return 0 ;; 0) return 1 ;; esac
+  local d drv
+  for d in "${SO_ROOT:-}"/sys/class/drm/card*; do
+    [[ "${d##*/}" =~ ^card[0-9]+$ ]] || continue
+    drv=$(readlink "$d/device/driver" 2>/dev/null) || continue
+    [ "${drv##*/}" = amdgpu ] && return 0
+  done
+  return 1
+}
+
+# inst_has_battery: a system battery (SO_INSTALL_BATTERY=1|0 overrides).
+inst_has_battery() {
+  case "${SO_INSTALL_BATTERY:-}" in 1) return 0 ;; 0) return 1 ;; esac
+  local d
+  for d in "${SO_ROOT:-}"/sys/class/power_supply/*; do
+    [ "$(cat "$d/type" 2>/dev/null)" = Battery ] || continue
+    [ "$(cat "$d/scope" 2>/dev/null)" = Device ] && continue   # a mouse or a headset
+    return 0
+  done
+  return 1
+}
+
+# inst_not_here NAME: why the opt-in step NAME does nothing on this machine
+# (the hardware it is for is missing), or nothing. Such steps are neither
+# picked by Full nor offered; --custom NAME still turns them on.
+inst_not_here() {
+  case "$1" in
+    gpu-memory|rocm) inst_has_amdgpu || echo "no AMD GPU (amdgpu driver)" ;;
+    charge|powerswitch) inst_has_battery || echo "no system battery" ;;
+  esac
+  return 0
+}
+
 # inst_unavailable NAME: why NAME can't be installed here, or nothing.
 inst_unavailable() {
   case "$1" in
@@ -386,10 +455,21 @@ inst_pick_full() {
       continue
     fi
     case "$n" in bpftune|lact) continue ;; esac   # nothing to install
+    why=$(inst_not_here "$n")
+    if [ -n "$why" ]; then INST_NOT_HERE+=("$n"$'\t'"$why"); continue; fi
     why=$(inst_full_why "$n")
     if [ -n "$why" ]; then INST_EXCLUDED+=("$n"$'\t'"$why"); continue; fi
     INST_PICK[$n]=1
   done
+}
+
+# inst_show_not_here: the steps Full skipped because their hardware is
+# missing.
+inst_show_not_here() {
+  local n
+  [ ${#INST_NOT_HERE[@]} -gt 0 ] || return 0
+  inst_head "Not for this machine"
+  for n in "${INST_NOT_HERE[@]}"; do inst_dim "  ${n%%$'\t'*}: ${n#*$'\t'}"; done
 }
 
 # inst_offer NAME: show NAME's readme and ask (Custom). 0 = chosen.
@@ -418,7 +498,11 @@ inst_custom_walk() {
     [ -n "$steps" ] || continue
     printf '\n%s%s%s: %s\n' "$INST_C_HEAD" "${INST_CAT_TITLE[$c]}" "$INST_C_OFF" "${steps% }"
     inst_ask "Go through $c?" y || continue
-    for s in $steps; do inst_offer "$s" && INST_PICK[$s]=1; done
+    for s in $steps; do
+      why=$(inst_not_here "$s")
+      if [ -n "$why" ]; then inst_dim "  $(inst_title "$s") ($s): not offered, $why"; continue; fi
+      inst_offer "$s" && INST_PICK[$s]=1
+    done
   done
   inst_head "Tray, monitoring and the agent"
   for n in "${INST_TRAY_PARTS[@]}"; do
@@ -439,7 +523,7 @@ inst_custom_walk() {
 inst_menu() {
   local ans n why
   inst_head "system-optimize installer"
-  inst_dim "$(inst_os_name), desktop: $(inst_desktop), $(inst_gib "$(inst_ram_kb)") RAM, $(inst_gib "$(inst_disk_kb)") free in your home"
+  inst_dim "$(inst_os_name), desktop: $(inst_desktop), $(inst_ram) RAM, $(inst_gib "$(inst_disk_kb)") free in your home"
   printf '\n  %s1%s  Full    everything that needs no reboot or extra repository (you review the list first)\n' "$INST_C_B" "$INST_C_OFF"
   printf '  %s2%s  Custom  go through each part, read what it does, and choose\n' "$INST_C_B" "$INST_C_OFF"
   printf '  %sq%s  Quit\n\n' "$INST_C_B" "$INST_C_OFF"
@@ -462,6 +546,7 @@ inst_menu() {
         inst_offer "${n%%$'\t'*}" && INST_PICK[${n%%$'\t'*}]=1
       done
     fi
+    inst_show_not_here
   else
     inst_custom_walk
   fi
@@ -480,7 +565,7 @@ inst_summary() {
   local steps n
   steps=$(inst_picked_steps | paste -sd' ' -)
   inst_head "Summary"
-  printf '  %-12s %s\n' "System:" "$(inst_os_name), desktop $(inst_desktop), $(inst_gib "$(inst_ram_kb)") RAM"
+  printf '  %-12s %s\n' "System:" "$(inst_os_name), desktop $(inst_desktop), $(inst_ram) RAM"
   printf '  %-12s %s\n' "Program:" "$BUNDLE (and bash completion)"
   printf '  %-12s %s\n' "Steps on:" "${steps:-none beyond the defaults}"
   [ -z "$steps" ] || printf '  %-12s %s\n' "" "ENABLE= in $(inst_config_file)"
@@ -558,11 +643,23 @@ inst_set_config() {
   inst_ok "$key=$value in $file"
 }
 
+# inst_as_user USER CMD...: run CMD as USER. Switching users drops the
+# user's session bus, so XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS are
+# set from /run/user/UID when it exists: systemctl --user (the agent's
+# timer) needs them, and without them the agent fell back to a crontab line.
 inst_as_user() {
-  local u="$1"; shift
-  if [ "$u" = "$(id -un)" ]; then "$@"
-  elif [ "$(id -u)" -eq 0 ] && command -v runuser >/dev/null 2>&1; then runuser -u "$u" -- "$@"
-  elif [ -n "$SO_SUDO" ]; then $SO_SUDO -u "$u" -- "$@"
+  local u="$1" uid rt
+  local -a envs=()
+  shift
+  if [ "$u" = "$(id -un)" ]; then "$@"; return; fi
+  uid=$(id -u "$u" 2>/dev/null) || uid=""
+  rt="${SO_ROOT:-}/run/user/$uid"
+  if [ -n "$uid" ] && [ -d "$rt" ]; then
+    envs=(env "XDG_RUNTIME_DIR=/run/user/$uid")
+    [ -S "$rt/bus" ] && envs+=("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus")
+  fi
+  if [ "$(id -u)" -eq 0 ] && command -v runuser >/dev/null 2>&1; then runuser -u "$u" -- "${envs[@]}" "$@"
+  elif [ -n "$SO_SUDO" ]; then $SO_SUDO -u "$u" -- "${envs[@]}" "$@"
   else die "can't run as $u"; fi
 }
 
@@ -667,17 +764,21 @@ inst_do_apply() {
     return 0
   fi
   inst_head "Applying"
-  if [ -n "$steps" ]; then
-    inst_program apply --yes && inst_record applied "$steps"
-  fi
+  # scx first: the scheduler step needs --install-tools to add the COPR and
+  # install scx_loader, and the full run after it then finds it in place
+  # (and the responsive step knows sched_ext runs) instead of skipping it.
   if [ -n "${INST_PICK[scx]:-}" ]; then
     inst_program apply scheduler --install-tools --yes && inst_record applied scheduler
+  fi
+  if [ -n "$steps" ]; then
+    inst_program apply --yes && inst_record applied "$steps"
   fi
   return 0
 }
 
 # inst_run: install.sh's "install" with components.
 inst_run() {
+  local n
   inst_colors
   inst_load_steps
   case "${INST_SELECT:-}" in
@@ -688,9 +789,12 @@ inst_run() {
   [ -z "${INST_PICK[scx]:-}" ] || INST_PICK[scheduler]=1
   inst_summary
   if [ "${INST_SELECT}" = full ] && [ ${#INST_EXCLUDED[@]} -gt 0 ] && [ "${INST_INTERACTIVE:-0}" != 1 ]; then
-    local n
     inst_dim "  Left out (add them with --custom):"
     for n in "${INST_EXCLUDED[@]}"; do inst_dim "    ${n%%$'\t'*}: ${n#*$'\t'}"; done
+  fi
+  if [ "${INST_SELECT}" = full ] && [ ${#INST_NOT_HERE[@]} -gt 0 ] && [ "${INST_INTERACTIVE:-0}" != 1 ]; then
+    inst_dim "  Not for this machine:"
+    for n in "${INST_NOT_HERE[@]}"; do inst_dim "    ${n%%$'\t'*}: ${n#*$'\t'}"; done
   fi
   if [ "${INST_INTERACTIVE:-0}" = 1 ] && [ "${INST_YES:-0}" != 1 ]; then
     echo

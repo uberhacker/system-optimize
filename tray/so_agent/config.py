@@ -19,6 +19,8 @@ DEFAULTS = {
     "AGENT_NOTIFY": "1",                    # desktop notification when a proposal is ready
     "AGENT_TIMEOUT": "300",                 # seconds per model request
     "AGENT_MAX_ROUNDS": "6",                # tool-call rounds per question
+    "AGENT_TRIAGE": "rules",                # rules | laya (needs pip install laya) | off; see triage.py
+    "AGENT_TRIAGE_WAKE": "0",               # 1: when a pressure episode leaves triage unsure, ask the model
 }
 VALID = {
     "AGENT_BACKEND": re.compile(r"^(ollama|llamacpp)$"),
@@ -30,6 +32,8 @@ VALID = {
     "AGENT_NOTIFY": re.compile(r"^[01]$"),
     "AGENT_TIMEOUT": re.compile(r"^\d{1,5}$"),
     "AGENT_MAX_ROUNDS": re.compile(r"^([1-9]|1\d|20)$"),
+    "AGENT_TRIAGE": re.compile(r"^(rules|laya|off)$"),
+    "AGENT_TRIAGE_WAKE": re.compile(r"^[01]$"),
 }
 SYSTEM_FILE = "/etc/system-optimize/agent.conf"
 

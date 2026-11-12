@@ -1,3 +1,10 @@
+system-optimize-tray (0.2.0) unstable; urgency=medium
+
+  * A quick view and a full view; triage of pressure and journal warnings
+    with suggestions that lead to the step; What's new. See whats-new.md.
+
+ -- Brad Vrudney <bradvrudney@users.noreply.github.com>  Thu, 12 Nov 2026 15:00:00 +0000
+
 system-optimize-tray (0.1.0) unstable; urgency=medium
 
   * First package: tray app, GNOME Shell extension and optional tuning agent.

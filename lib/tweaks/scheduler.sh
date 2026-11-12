@@ -21,7 +21,9 @@
 #                                     from the official repositories
 #   Fedora                            only from the COPR
 #                                     bieszczaders/kernel-cachyos-addons
-#                                     (scx-scheds, scx-tools), and only with
+#                                     (scx-scheds, scx-tools; scx-scheds may
+#                                     pull in scx-tools-git instead, which
+#                                     is used as it is), and only with
 #                                     INSTALL_TOOLS on. The step writes the
 #                                     repository file itself under a name
 #                                     --undo accepts, rather than through
@@ -65,24 +67,8 @@ SO_SCX_COPR=bieszczaders/kernel-cachyos-addons
 SO_SCX_COPR_REPO=/etc/yum.repos.d/system-optimize-kernel-cachyos-addons.repo
 SO_SCX_PACKAGES="scx-scheds scx-tools"
 
-# scheduler_pkg_available NAME: the distribution's configured repositories
-# (or the system) have the package NAME.
-scheduler_pkg_available() {
-  local name="$1" out
-  pkg_installed "$name" && return 0
-  case "$SO_PKG_MANAGER" in
-    dnf) run "$(_dnf_cmd)" -q info "$name" >/dev/null 2>&1 ;;
-    apt) has_cmd apt-cache && run apt-cache show "$name" >/dev/null 2>&1 ;;
-    pacman) run pacman -Si "$name" >/dev/null 2>&1 ;;
-    zypper) run zypper --non-interactive --quiet search --match-exact "$name" >/dev/null 2>&1 ;;
-    apk)
-      has_cmd apk || return 1
-      out=$(run apk search -e "$name" 2>/dev/null) || return 1
-      [ -n "$out" ] ;;
-    xbps) has_cmd xbps-query && run xbps-query -R "$name" >/dev/null 2>&1 ;;
-    *) return 1 ;;
-  esac
-}
+# scheduler_pkg_available NAME: see pkg_available.
+scheduler_pkg_available() { pkg_available "$1"; }
 
 # scheduler_name: the scx_* binary to run.
 scheduler_name() {
@@ -178,9 +164,23 @@ _scheduler_install() {
     fi
   fi
   for p in $avail; do
+    _scheduler_pkg_satisfied "$p" && continue
     pkg_add "$p" || { SCHED_NOTE="could not install $p"; return 1; }
   done
   return 0
+}
+
+# _scheduler_pkg_satisfied NAME: NAME, or a package that stands in for it,
+# is installed. The COPR's scx-scheds pulls in scx-tools-git, which
+# conflicts with scx-tools and gives the same scx_loader, so installing
+# scx-tools after it fails.
+_scheduler_pkg_satisfied() {
+  pkg_installed "$1" && return 0
+  case "$1" in
+    scx-tools)
+      pkg_installed scx-tools-git || has_cmd scx_loader ;;
+    *) return 1 ;;
+  esac
 }
 
 # _scheduler_ananicy_warning: the warning when ananicy-cpp runs too.

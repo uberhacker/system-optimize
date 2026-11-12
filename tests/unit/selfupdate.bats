@@ -241,3 +241,59 @@ make_tarball_release() {
   [ "$status" -eq 0 ]
   assert_output_contains "ignored for a single-file build"
 }
+
+# root_owned FILE: make `stat -c %U FILE` say root (a single file installed
+# with sudo into /usr/local/bin), without being root. Other stat calls go
+# to the real stat.
+root_owned() {
+  local d="$BATS_TEST_TMPDIR/rootstat" real
+  real=$(command -v stat)
+  mkdir -p "$d"
+  cat > "$d/stat" <<STUB
+#!/usr/bin/env bash
+if [ "\$1" = -c ] && [ "\$2" = %U ] && [ "\$(readlink -f -- "\$3")" = "\$(readlink -f -- "$1")" ]; then
+  echo root
+  exit 0
+fi
+exec "$real" "\$@"
+STUB
+  chmod +x "$d/stat"
+  export PATH="$d:$PATH"
+}
+
+@test "a root-owned single file is updated through sudo, asked for once up front" {
+  local dir="$BATS_TEST_TMPDIR/sfu" rel="$SANDBOX/rel"
+  build_bundle "$dir"
+  make_release "$rel" "$dir/system-optimize" 9.9.9
+  root_owned "$dir/system-optimize"
+  export SELF_UPDATE_REPO="file://$rel"
+  run "$dir/system-optimize" --self-update
+  [ "$status" -eq 0 ]
+  assert_output_contains "$dir/system-optimize is owned by root; sudo is required to update it"
+  assert_output_contains "-> 9.9.9 (git "
+  grep -q "^SO_BUNDLE_VERSION='9.9.9'$" "$dir/system-optimize"
+  # credentials first, then only the copy and the rename run as root; the
+  # download and the checks run as the user
+  [ "$(grep '^sudo ' "$STUB_LOG" | head -n1)" = "sudo -n true" ]
+  assert_called "sudo -n install -m 0755 "
+  assert_called "sudo -n mv -f -- $dir/.system-optimize.new."
+  [ "$(grep -c '^sudo ' "$STUB_LOG")" -eq 3 ]
+  [ -z "$(find "$dir" -name '.system-optimize.new.*')" ]
+}
+
+@test "a root-owned single file is left alone without sudo or its credentials" {
+  local dir="$BATS_TEST_TMPDIR/sfu" rel="$SANDBOX/rel"
+  build_bundle "$dir"
+  make_release "$rel" "$dir/system-optimize" 9.9.9
+  cp "$dir/system-optimize" "$BATS_TEST_TMPDIR/orig"
+  root_owned "$dir/system-optimize"
+  export SELF_UPDATE_REPO="file://$rel"
+  run env SO_SUDO= "$dir/system-optimize" --self-update
+  [ "$status" -eq 1 ]
+  assert_output_contains "$dir/system-optimize is owned by root and sudo is not available"
+  run env STUB_EXIT_sudo=1 "$dir/system-optimize" --self-update
+  [ "$status" -eq 1 ]
+  assert_output_contains "sudo credentials unavailable; nothing changed"
+  assert_not_called "curl "
+  cmp -s "$dir/system-optimize" "$BATS_TEST_TMPDIR/orig"
+}

@@ -10,6 +10,14 @@ for d in (os.environ.get("SO_TRAY_LIBDIR"),
         sys.path.insert(0, os.path.abspath(d))
         break
 
-from so_tray.app import main  # noqa: E402
+try:
+    from so_tray.app import main  # noqa: E402
+except ImportError as exc:
+    if (getattr(exc, "name", None) or "").split(".")[0] not in ("PySide6", "PyQt6"):
+        raise
+    sys.stderr.write("system-optimize-tray: the dashboard needs PySide6 or PyQt6 for Python 3 "
+                     "(Fedora: sudo dnf install python3-pyside6; Debian and Ubuntu: python3-pyside6.qtwidgets "
+                     "or python3-pyqt6; Arch: pyside6)\n")
+    sys.exit(1)
 
 sys.exit(main())

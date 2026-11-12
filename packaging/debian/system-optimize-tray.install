@@ -2,6 +2,7 @@ usr/bin/system-optimize-tray
 usr/bin/system-optimize-tray-backend
 usr/share/system-optimize-tray/so_tray
 usr/share/system-optimize-tray/credits.json
+usr/share/system-optimize-tray/whats-new.md
 usr/libexec/system-optimize/system-optimize-helper
 usr/share/polkit-1/actions/io.github.bradvrudney.system-optimize.policy
 usr/share/applications/io.github.bradvrudney.SystemOptimizeTray.desktop

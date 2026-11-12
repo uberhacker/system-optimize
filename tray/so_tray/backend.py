@@ -45,17 +45,28 @@ def _result(rc_out_err):
     return {"ok": rc == 0, "code": rc, "output": text.strip()}
 
 
-def cmd_monitor(args, out=sys.stdout, recorder=None):
+def cmd_monitor(args, out=sys.stdout, recorder=None, trigger=None):
     mon = Monitor(root=os.environ.get("SO_ROOT", "/"))
+    alerts = None
     if args.record and recorder is None:
         from .history import Recorder
         recorder = Recorder()
+    if args.record:
+        # the recording monitor is the one that runs all day (the GNOME
+        # extension's): it also starts the agent's quick look when a
+        # pressure episode begins
+        from .model import PressureAlerts
+        from .trigger import TriageTrigger
+        alerts = PressureAlerts()
+        trigger = trigger or TriageTrigger()
 
     def one():
         sample = mon.sample()
         _emit(sample, out)
         if recorder:
             recorder.add(sample)
+        if alerts is not None and alerts.update(sample):
+            trigger.fire()
 
     mon.cpu()                    # prime the CPU counters
     time.sleep(min(0.5, args.interval))

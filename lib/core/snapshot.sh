@@ -154,17 +154,18 @@ snap_file() {
 # Changing things (each records first, then changes; a dry run only reports)
 # ---------------------------------------------------------------------------
 # file_differs PATH NEWFILE: is the installed PATH missing or different?
+# The "Written by system-optimize (VERSION)" header line does not count: a
+# file an older build wrote holds the same settings, and rewriting it after
+# every upgrade would make a snapshot for a comment and show every step as
+# off (the tray's switches) until it was applied again.
 file_differs() {
   local real
   real=$(so_path "$1")
   [ -f "$real" ] || return 0
-  if has_cmd cmp; then
-    ! cmp -s -- "$real" "$2"
-  else
-    # Minimal containers ship without diffutils.
-    [ "$(sha256_of "$real")" != "$(sha256_of "$2")" ]
-  fi
+  [ "$(_file_body "$real")" != "$(_file_body "$2")" ]
 }
+
+_file_body() { grep -v 'Written by system-optimize' -- "$1" || true; }
 
 # install_file PATH MODE < CONTENT: put CONTENT at PATH (a system path).
 # Never call it at the end of a pipeline (`cmd | install_file`): it would

@@ -175,5 +175,24 @@ class InSyncTest(unittest.TestCase):
         self.assertEqual(re.findall(r"\['([a-z_]+)'", block), list(METRICS))
 
 
+class MinuteRowsTest(unittest.TestCase):
+    """The full view's "last hour" and "last 24 hours" read per-minute rows:
+    a window opened from the GNOME menu is a new process with no memory of
+    its own, so the recorder keeps them (for about a day)."""
+
+    def test_minutes_are_kept_for_a_day_and_pruned(self):
+        from so_tray.history import History
+        h = History(":memory:")
+        now = 1_800_000_000
+        for age in (30 * 3600, 3600, 120, 60, 0):
+            h.record({"cpu": {"percent": 10.0 + age % 7}}, ts=now - age)
+        self.assertEqual(len(h.series("cpu", "minute")), 5)
+        self.assertEqual([s for s, *_ in h.series("cpu", "minute", since=now - 200)],
+                         [now - 120 - (now - 120) % 60, now - 60 - (now - 60) % 60, now - now % 60])
+        h.prune(now)
+        self.assertEqual(len(h.series("cpu", "minute")), 4)      # the 30-hour-old minute is gone
+        self.assertEqual(len(h.series("cpu", "hour")), 3)        # hours stay (90 days); three readings share one
+
+
 if __name__ == "__main__":
     unittest.main()

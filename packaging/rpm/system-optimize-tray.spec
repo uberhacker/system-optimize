@@ -1,7 +1,7 @@
 %global uuid system-optimize@bradvrudney.github.io
 
 Name:           system-optimize-tray
-Version:        0.1.0
+Version:        0.2.0
 Release:        1%{?dist}
 Summary:        Tray app and dashboard for system-optimize
 License:        GPL-3.0-only
@@ -72,6 +72,7 @@ cd tray && QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests
 %dir %{_datadir}/system-optimize-tray
 %{_datadir}/system-optimize-tray/so_tray/
 %{_datadir}/system-optimize-tray/credits.json
+%{_datadir}/system-optimize-tray/whats-new.md
 %dir %{_libexecdir}/system-optimize
 %{_libexecdir}/system-optimize/system-optimize-helper
 %{_datadir}/polkit-1/actions/io.github.bradvrudney.system-optimize.policy
@@ -91,5 +92,9 @@ cd tray && QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests
 %{_datadir}/system-optimize-tray/install-agent.sh
 
 %changelog
+* Thu Nov 12 2026 Brad Vrudney <bradvrudney@users.noreply.github.com> - 0.2.0-1
+- A quick view and a full view; triage of pressure and journal warnings with
+  suggestions that lead to the step; What's new. See whats-new.md.
+
 * Sun Nov 01 2026 Brad Vrudney <bradvrudney@users.noreply.github.com> - 0.1.0-1
 - First package: tray app, GNOME Shell extension and optional tuning agent.

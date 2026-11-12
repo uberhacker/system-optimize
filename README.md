@@ -91,10 +91,26 @@ your system.
 
 ## Quick start
 
+The program is one file. Take it from the latest release, check it and
+install it, in one line (no checkout, nothing to build):
+
+```bash
+curl -fsSL --remote-name-all https://github.com/uberhacker/system-optimize/releases/latest/download/system-optimize{,.sha256} && sha256sum -c system-optimize.sha256 && sudo install -m 0755 system-optimize /usr/local/bin/
+```
+
+It updates itself from the releases: `sudo system-optimize self-update`
+(see [Single file](#single-file)). Or clone it for the installer, which
+also offers the opt-in steps, the tray app and the helper tools:
+
 ```bash
 git clone https://github.com/uberhacker/system-optimize.git
 cd system-optimize
 ./install.sh                       # from a terminal: asks Full or Custom
+```
+
+Then, either way:
+
+```bash
 system-optimize status             # no root needed
 system-optimize apply -n           # no root needed
 sudo system-optimize               # apply
@@ -238,10 +254,40 @@ completion. A copy of system-optimize 1.x at the same path is replaced.
 Without cloning, take the file from the latest release and check it:
 
 ```bash
-curl -fsSLO https://github.com/uberhacker/system-optimize/releases/latest/download/system-optimize
-curl -fsSLO https://github.com/uberhacker/system-optimize/releases/latest/download/system-optimize.sha256
-sha256sum -c system-optimize.sha256 && sudo install -m 0755 system-optimize /usr/local/bin/
+curl -fsSL --remote-name-all https://github.com/uberhacker/system-optimize/releases/latest/download/system-optimize{,.sha256}
+sha256sum -c system-optimize.sha256
+sudo install -m 0755 system-optimize /usr/local/bin/       # for everyone, or:
+install -D -m 0755 system-optimize ~/.local/bin/system-optimize   # just you, no sudo
 ```
+
+That file is the whole command-line program: every step, `status`,
+`undo`, `benchmark`, `describe` and the completion
+(`source <(system-optimize completion bash)`). It needs bash 4.4 and
+coreutils, like the checkout. Copy it anywhere, under any name.
+
+It updates itself: `system-optimize self-update` downloads the latest
+release's `system-optimize` and `system-optimize.sha256`, checks them and
+replaces the file in one rename. A file only root can write (the
+`/usr/local/bin` install) is updated through sudo, asked for once before
+anything is downloaded; a file in `~/.local/bin` is updated without it.
+Releases are published by CI when a version is tagged
+(`.github/workflows/release.yml`), so the file follows releases, not the
+`main` branch.
+
+What is not in the file:
+
+* **The tray app**, the GNOME extension and the tuning agent. They are
+  separate programs (Python and Qt, and a GNOME Shell extension),
+  installed from a checkout (`./install.sh` offers them, or
+  `tray/install.sh`); they drive whichever `system-optimize` is on the
+  `PATH`, the single file included.
+* **The installer's menu** (Full or Custom): with the single file, choose
+  opt-in steps with `enable`, a profile, or `ENABLE=` in the config file.
+* **Compiled code.** It is a plain bash script on purpose, not a compiled
+  binary: you can read what it will do as root before you run it, it runs
+  on any distribution with bash, and there is nothing to build per
+  architecture. Tools that "compile" a shell script (such as shc) only wrap
+  the same script in an executable that hides it.
 
 ### The tree layout
 
@@ -427,7 +473,9 @@ sudo system-optimize self-update
 
 * A single file downloads the latest release asset and its `.sha256`,
   refuses it if the checksum is missing or wrong or the file is not a
-  single-file build, and replaces itself in one rename.
+  single-file build, and replaces itself in one rename (through sudo when
+  root owns it). The checksum comes from the same release over https: it
+  catches a broken or truncated download, not a compromised release.
 * A git checkout fast-forwards (refusing local changes); `--branch` switches.
 * A tree installation downloads the branch tarball and swaps it in.
 * `SELF_UPDATE_REPO` (or `--source`) follows a fork, `https://` only.
@@ -459,7 +507,7 @@ other programs the steps call. Nothing on the machine running them changes.
 The same suite runs against the modular `bin/` and the single-file build.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) has the layout, how to add a step and
 the rules modules follow. Push a `v*` tag to publish a release (the single
-file and its checksum).
+file and its checksum; see [Releasing](CONTRIBUTING.md#releasing)).
 
 ## Changes from the original
 

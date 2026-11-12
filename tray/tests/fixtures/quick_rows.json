@@ -1,0 +1,43 @@
+[
+  {"name": "a tuned desktop with a warning and a suggestion",
+   "sample": {"cpu": {"percent": 3.2, "mhz": 3400, "load1": 1.1},
+              "memory": {"percent": 35.0, "total_mb": 96256, "used_mb": 33690, "swap_total_mb": 8191, "swap_used_mb": 0, "zram": true},
+              "temperature": {"cpu": 62.4, "nvme": 43},
+              "disk": {"read_mbs": 0.0, "write_mbs": 1.1},
+              "gpu": {"mem_total_mb": 32768, "mem_used_mb": 9420, "mem_percent": 28.7, "vram_total_mb": 512, "vram_used_mb": 512, "gtt_total_mb": 32256, "gtt_used_mb": 8908},
+              "power": {"profile": "throughput-performance", "owner": "tuned", "ac": null, "batteries": []},
+              "warnings": [{"id": "scx-ananicy", "text": "An scx scheduler and ananicy-cpp are both running; they fight over task priorities, so stop one of them before trusting the numbers."}]},
+   "info": {"found": true, "profile": "dev", "warnings": [],
+            "features": [{"name": "sysctl", "applied": true}, {"name": "io", "applied": true}, {"name": "display", "applied": false}, {"name": "psd", "applied": null}]},
+   "proposal": {"action": "enable_step", "target": "tuned", "summary": "turn on tuned", "reason": "x"},
+   "alerts": ["Memory pressure: tasks stalled waiting for memory 12% of the last 10 s (alert at 10%)."],
+   "rows": [
+     {"kind": "readout", "text": "CPU 3% · 3.4 GHz · 62°C", "page": "resource:cpu"},
+     {"kind": "readout", "text": "Memory 32.9 of 94.0 GB (35%)", "page": "resource:memory"},
+     {"kind": "readout", "text": "Disk 1.1 MB/s", "page": "resource:disk"},
+     {"kind": "readout", "text": "GPU memory 9.2 of 32.0 GB (29%)", "page": "resource:gpu_mem"},
+     {"kind": "readout", "text": "Power profile throughput-performance (tuned)", "page": "overview"},
+     {"kind": "status", "text": "2 of 3 steps on · profile dev", "page": "settings"},
+     {"kind": "warning", "text": "⚠ An scx scheduler and ananicy-cpp are both running; they fight over task priorities, so st…", "page": "overview"},
+     {"kind": "warning", "text": "⚠ Memory pressure: tasks stalled waiting for memory 12% of the last 10 s (alert at 10%).", "page": "overview"},
+     {"kind": "suggestion", "text": "Agent suggests: turn on tuned", "page": "step:tuned"}
+   ]},
+  {"name": "a laptop on battery, an old CLI that reports no state",
+   "sample": {"cpu": {"percent": null}, "memory": {"percent": 50, "total_mb": 16384, "used_mb": 8192},
+              "temperature": {}, "disk": {"read_mbs": null, "write_mbs": null}, "gpu": {},
+              "power": {"profile": "balanced", "ac": false, "batteries": [{"percent": 77, "status": "Discharging"}]}},
+   "info": {"found": true, "features": [{"name": "sysctl", "applied": null}, {"name": "io", "applied": null}]},
+   "proposal": null, "alerts": [],
+   "rows": [
+     {"kind": "readout", "text": "CPU –", "page": "resource:cpu"},
+     {"kind": "readout", "text": "Memory 8.0 of 16.0 GB (50%)", "page": "resource:memory"},
+     {"kind": "readout", "text": "Power profile balanced · battery 77% discharging", "page": "overview"},
+     {"kind": "status", "text": "2 steps", "page": "settings"}
+   ]},
+  {"name": "before the first reading, system-optimize missing",
+   "sample": null, "info": {"found": false, "features": []}, "proposal": null, "alerts": [],
+   "rows": [
+     {"kind": "readout", "text": "Reading the system…", "page": "overview"},
+     {"kind": "status", "text": "system-optimize is not installed", "page": "settings"}
+   ]}
+]

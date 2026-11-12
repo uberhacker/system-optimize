@@ -107,5 +107,29 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(pick_history("cpu", own, self.src)[1], "tray")
 
 
+class ReaderLifetimeTest(unittest.TestCase):
+    def test_a_reader_is_stopped_with_the_app_not_left_running(self):
+        import threading
+        import time
+        from so_tray import pcp
+        result = []
+        t = threading.Thread(target=lambda: result.append(pcp._run(["sleep", "30"])), daemon=True)
+        t.start()
+        end = time.time() + 3
+        while not pcp._live and time.time() < end:
+            time.sleep(0.01)
+        self.assertEqual(len(pcp._live), 1)
+        pcp.stop_readers()
+        t.join(3)
+        self.assertEqual(result, [None])
+        self.assertEqual(pcp._live, set())
+
+    def test_a_reader_that_takes_too_long_is_stopped(self):
+        from so_tray import pcp
+        self.assertIsNone(pcp._run(["sleep", "30"], timeout=0.2))
+        self.assertEqual(pcp._live, set())
+        self.assertEqual(pcp._run(["echo", "ok"]), "ok\n")
+
+
 if __name__ == "__main__":
     unittest.main()

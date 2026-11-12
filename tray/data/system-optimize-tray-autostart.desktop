@@ -2,7 +2,7 @@
 Type=Application
 Name=system-optimize tray
 Comment=Panel indicator for system-optimize
-Exec=system-optimize-tray
+Exec=system-optimize-tray --autostart
 Icon=system-optimize-tray
 Terminal=false
 NoDisplay=true

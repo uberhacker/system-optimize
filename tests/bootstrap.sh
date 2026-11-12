@@ -22,7 +22,9 @@ elif command -v dnf >/dev/null 2>&1; then
 elif command -v apt-get >/dev/null 2>&1; then
   apt-get update -q && apt-get install -y -q --no-install-recommends bash curl ca-certificates diffutils tar gzip findutils
 elif command -v pacman >/dev/null 2>&1; then
-  pacman -Sy --noconfirm --needed bash diffutils findutils tar gzip curl
+  # -Syu, not -Sy: Arch does not support partial upgrades, and a new curl
+  # against the image's old openssl fails (the openssl 4 move, Nov 2026).
+  pacman -Syu --noconfirm --needed bash diffutils findutils tar gzip curl
 elif command -v zypper >/dev/null 2>&1; then
   zypper -n install bash diffutils findutils tar gzip curl
 else

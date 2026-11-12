@@ -86,6 +86,8 @@ EOF
 }
 
 @test "--full --yes leaves out reboot steps and the COPR, and installs PCP" {
+  add_battery BAT0
+  export SO_INSTALL_AMDGPU=1
   run bash "$CHECKOUT/install.sh" --full --yes --prefix "$PREFIX_DIR"
   [ "$status" -eq 0 ]
   local enable; enable=$(sed -n 's/^ENABLE=//p' "$SO_SYSTEM_CONFIG")
@@ -155,11 +157,52 @@ sysvinit_box() {
   [ "$(grep -n 'program disable' "$STUB_LOG" | cut -d: -f1)" -lt "$(grep -n 'dnf remove' "$STUB_LOG" | cut -d: -f1)" ]
 }
 
-@test "scx applies the scheduler step with --install-tools" {
-  run bash "$CHECKOUT/install.sh" --custom scx --apply --prefix "$PREFIX_DIR"
+@test "scx applies the scheduler step with --install-tools, before the other steps" {
+  run bash "$CHECKOUT/install.sh" --custom scx,thp --apply --prefix "$PREFIX_DIR"
   [ "$status" -eq 0 ]
-  grep -qx 'ENABLE=scheduler' "$SO_SYSTEM_CONFIG"
-  grep -q '^program apply scheduler --install-tools --yes$' "$STUB_LOG"
+  grep -qx 'ENABLE=thp,scheduler' "$SO_SYSTEM_CONFIG"
+  # the scheduler run installs scx_loader first, so the full run finds it
+  [ "$(grep '^program' "$STUB_LOG" | head -n1)" = "program apply scheduler --install-tools --yes" ]
+  [ "$(grep '^program' "$STUB_LOG" | sed -n 2p)" = "program apply --yes" ]
+}
+
+@test "steps for hardware this machine lacks are neither picked by Full nor offered" {
+  # the sandbox: no amdgpu card, only a wireless mouse's battery
+  run bash "$CHECKOUT/install.sh" --full --yes --prefix "$PREFIX_DIR"
+  [ "$status" -eq 0 ]
+  local enable; enable=$(sed -n 's/^ENABLE=//p' "$SO_SYSTEM_CONFIG")
+  [[ ",$enable," == *,mglru,* ]]
+  [[ ",$enable," != *,charge,* ]]
+  [[ ",$enable," != *,powerswitch,* ]]
+  assert_output_contains "Not for this machine:"
+  assert_output_contains "gpu-memory: no AMD GPU (amdgpu driver)"
+  assert_output_contains "charge: no system battery"
+  assert_output_not_contains "gpu-memory: needs a reboot"
+  # interactive Full: scx is the only one asked about (n), then go ahead (y), don't apply (n)
+  rm -f "$SO_SYSTEM_CONFIG" "$SO_INSTALL_MANIFEST"
+  run bash -c "printf '1\nn\ny\nn\n' | bash '$CHECKOUT/install.sh' --interactive --prefix '$PREFIX_DIR'"
+  [ "$status" -eq 0 ]
+  assert_output_contains "Not for this machine"
+  assert_output_not_contains "Turn on gpu-memory?"
+  assert_output_not_contains "Turn on rocm?"
+  # an amdgpu card in /sys makes them apply again
+  mkdir -p "$SANDBOX/sys/class/drm/card1/device" "$SANDBOX/sys/bus/pci/drivers/amdgpu"
+  ln -s "$SANDBOX/sys/bus/pci/drivers/amdgpu" "$SANDBOX/sys/class/drm/card1/device/driver"
+  run bash "$CHECKOUT/install.sh" --full --yes --dry-run --prefix "$PREFIX_DIR"
+  assert_output_contains "gpu-memory: needs a reboot"
+  # --custom still turns one on
+  run bash "$CHECKOUT/install.sh" --custom charge --prefix "$PREFIX_DIR"
+  [ "$status" -eq 0 ]
+  grep -q 'charge' "$SO_SYSTEM_CONFIG"
+}
+
+@test "the header shows installed RAM as the program does, and finds GNOME without XDG_CURRENT_DESKTOP" {
+  echo "MemTotal:       98694000 kB" > "$SO_INSTALL_MEMINFO"   # a 96 GiB machine
+  unset XDG_CURRENT_DESKTOP SO_DESKTOP
+  mkdir -p "$SANDBOX/usr/bin"
+  printf '#!/bin/sh\n' > "$SANDBOX/usr/bin/gnome-shell"; chmod +x "$SANDBOX/usr/bin/gnome-shell"
+  run bash -c "printf 'q\n' | bash '$CHECKOUT/install.sh' --interactive --prefix '$PREFIX_DIR'"
+  assert_output_contains "desktop: gnome, 96 GiB RAM"
 }
 
 @test "a package that was already there is neither recorded nor removed" {
@@ -205,6 +248,7 @@ sysvinit_box() {
 }
 
 @test "interactive Full lists what it leaves out and asks for each" {
+  export SO_INSTALL_AMDGPU=1
   # 1 = Full; scx no, gpu-memory yes, rocm no; go ahead; don't apply.
   run bash -c "printf '1\nn\ny\nn\ny\nn\n' | bash '$CHECKOUT/install.sh' --interactive --prefix '$PREFIX_DIR'"
   [ "$status" -eq 0 ]

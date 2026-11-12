@@ -33,6 +33,18 @@ def _get(url, timeout):
         raise LlmError("cannot reach the model server at %s (%s)" % (url, exc)) from exc
 
 
+def answer(text):
+    """The reply without the model's reasoning. Thinking models (qwen3) sometimes
+    put it in the content even when asked not to think, as <think>...</think>
+    or as text up to a closing tag; the answer is what follows."""
+    text = text or ""
+    if "</think>" in text:
+        text = text.rsplit("</think>", 1)[1]
+    elif "<think>" in text:          # never closed: nothing after the reasoning
+        text = text.split("<think>", 1)[0]
+    return text.strip()
+
+
 def _args(raw):
     if isinstance(raw, dict):
         return raw
@@ -59,7 +71,7 @@ class Ollama:
         calls = [{"name": (c.get("function") or {}).get("name", ""),
                   "arguments": _args((c.get("function") or {}).get("arguments"))}
                  for c in msg.get("tool_calls") or []]
-        return {"content": msg.get("content") or "", "tool_calls": calls}
+        return {"content": answer(msg.get("content")), "tool_calls": calls}
 
     def models(self):
         return sorted(m.get("name", "") for m in (_get(self.url + "/api/tags", 10).get("models") or []))
@@ -93,7 +105,7 @@ class OpenAICompatible:
         calls = [{"name": (c.get("function") or {}).get("name", ""),
                   "arguments": _args((c.get("function") or {}).get("arguments"))}
                  for c in msg.get("tool_calls") or []]
-        return {"content": msg.get("content") or "", "tool_calls": calls}
+        return {"content": answer(msg.get("content")), "tool_calls": calls}
 
     def models(self):
         return sorted(m.get("id", "") for m in (_get(self.url + "/v1/models", 10).get("data") or []))

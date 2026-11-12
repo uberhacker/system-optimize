@@ -347,6 +347,25 @@ pkg_installed() {
   esac
 }
 
+# pkg_available NAME: the system has the package NAME, or the configured
+# repositories offer it. Only reads (a missing repository answers no).
+pkg_available() {
+  local name="$1" out
+  pkg_installed "$name" && return 0
+  case "$SO_PKG_MANAGER" in
+    dnf) run "$(_dnf_cmd)" -q info "$name" >/dev/null 2>&1 ;;
+    apt) has_cmd apt-cache && run apt-cache show "$name" >/dev/null 2>&1 ;;
+    pacman) run pacman -Si "$name" >/dev/null 2>&1 ;;
+    zypper) run zypper --non-interactive --quiet search --match-exact "$name" >/dev/null 2>&1 ;;
+    apk)
+      has_cmd apk || return 1
+      out=$(run apk search -e "$name" 2>/dev/null) || return 1
+      [ -n "$out" ] ;;
+    xbps) has_cmd xbps-query && run xbps-query -R "$name" >/dev/null 2>&1 ;;
+    *) return 1 ;;
+  esac
+}
+
 # pkg_install NAME / pkg_remove NAME: through the package manager, with the
 # package timeout. They change the system: callers check SO_DRY_RUN first.
 pkg_install() {

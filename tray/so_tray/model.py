@@ -1,5 +1,6 @@
 """What the tray menu shows, worked out without Qt so it can be tested."""
 
+import re
 import time
 
 from .monitor import PSI_THRESHOLDS
@@ -349,3 +350,90 @@ def llm_line(history):
             p += " (%s)" % fmt_pct(pct)
         parts.append(p)
     return " · ".join(parts)
+
+
+# -- the quick view ---------------------------------------------------------
+
+QUICK_WARNING_CHARS = 90      # menu rows do not wrap
+
+
+def _r(v):
+    """Round half up, as the extension's Math.round does."""
+    return int(v + 0.5) if v >= 0 else -int(-v + 0.5)
+
+
+def steps_summary(info):
+    """'22 of 23 steps on · profile dev', counting the steps whose state is known."""
+    info = info or {}
+    if not info.get("found"):
+        return "system-optimize is not installed"
+    feats = info.get("features") or []
+    known = [f for f in feats if f.get("applied") is not None]
+    if known:
+        text = "%d of %d steps on" % (sum(1 for f in known if f["applied"]), len(known))
+    else:
+        text = "%d step%s" % (len(feats), "" if len(feats) == 1 else "s")
+    if info.get("profile"):
+        text += " · profile %s" % info["profile"]
+    return text
+
+
+def quick_rows(sample, info, proposal=None, alerts=()):
+    """The rows of the quick view (the tray icon's menu, the GNOME panel
+    menu), top to bottom: [{'kind', 'text', 'page'}]. kind is readout,
+    status, warning or suggestion; page is where a click goes in the full
+    view. The extension's quickRows (lib.js) gives the same rows; a shared
+    fixture keeps the two in step."""
+    rows = []
+
+    def add(kind, text, page):
+        rows.append({"kind": kind, "text": text, "page": page})
+
+    if not sample:
+        add("readout", "Reading the system…", "overview")
+    else:
+        cpu, mem = sample.get("cpu") or {}, sample.get("memory") or {}
+        temp, disk = sample.get("temperature") or {}, sample.get("disk") or {}
+        power = sample.get("power") or {}
+        parts = ["CPU " + ("–" if cpu.get("percent") is None else "%d%%" % _r(cpu["percent"]))]
+        if cpu.get("mhz"):
+            parts.append("%.1f GHz" % (cpu["mhz"] / 1000.0))
+        if temp.get("cpu") is not None:
+            parts.append("%d°C" % _r(temp["cpu"]))
+        add("readout", " · ".join(parts), "resource:cpu")
+        if mem.get("total_mb"):
+            m = "Memory %s of %s GB" % (_gb(mem.get("used_mb") or 0), _gb(mem["total_mb"]))
+            if mem.get("percent") is not None:
+                m += " (%d%%)" % _r(mem["percent"])
+            add("readout", m, "resource:memory")
+        if disk.get("read_mbs") is not None and disk.get("write_mbs") is not None:
+            add("readout", "Disk %.1f MB/s" % (disk["read_mbs"] + disk["write_mbs"]), "resource:disk")
+        gpu = sample.get("gpu") or {}
+        if gpu.get("mem_total_mb"):
+            g = "GPU memory %s of %s GB" % (_gb(gpu.get("mem_used_mb") or 0), _gb(gpu["mem_total_mb"]))
+            if gpu.get("mem_percent") is not None:
+                g += " (%d%%)" % _r(gpu["mem_percent"])
+            add("readout", g, "resource:gpu_mem")
+        p = "Power profile " + (power.get("profile") or "unknown")
+        if power.get("owner"):
+            p += " (%s)" % power["owner"]
+        bat = next((b for b in power.get("batteries") or [] if b.get("percent") is not None), None)
+        if bat:
+            p += " · battery %d%%" % bat["percent"]
+            if bat.get("status"):
+                p += " " + bat["status"].lower()
+        elif power.get("ac") is not None:
+            p += " · on AC" if power["ac"] else " · on battery"
+        add("readout", p, "overview")
+    add("status", steps_summary(info), "settings")
+    for text in warning_lines(sample, info) + list(alerts or ()):
+        if len(text) > QUICK_WARNING_CHARS:
+            text = text[:QUICK_WARNING_CHARS - 1] + "…"
+        add("warning", "⚠ " + text, "overview")
+    if proposal and proposal.get("summary"):
+        page = "agent"       # a step's own page when the suggestion is about one (tools.page_for)
+        if proposal.get("action") in ("enable_step", "disable_step") and \
+                re.match(r"^[a-z][a-z0-9-]{0,31}$", str(proposal.get("target") or "")):
+            page = "step:" + proposal["target"]
+        add("suggestion", "Agent suggests: %s" % proposal["summary"], page)
+    return rows

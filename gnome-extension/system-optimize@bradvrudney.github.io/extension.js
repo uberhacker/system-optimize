@@ -1,9 +1,12 @@
 // system-optimize GNOME Shell extension (GNOME 45 and later).
 //
-// A panel indicator with a live readout and switches for the system-optimize
-// steps. It runs nothing as root and does no work of its own: monitoring and
-// changes come from `system-optimize-tray-backend` (the same code the Qt tray
-// app uses); changes go through pkexec, so GNOME's own password dialog asks.
+// The quick view: a panel indicator with a live readout, one line on the
+// tuning steps, warnings while there are any, and the way into the full
+// view (system-optimize-tray, a normal window). It changes nothing on the
+// machine and runs nothing as root; the switches live in the full view's
+// Settings. Monitoring comes from `system-optimize-tray-backend` (the same
+// code the Qt app uses). The rows are lib.js's quickRows, the same as the
+// tray icon's menu on other desktops.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -14,15 +17,15 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {PressureAlerts, actionsAvailable, categories, categoryCount, configValue, panelLabel, parseJsonLine,
-    readoutLines, readoutResource, resultMessage, RESOURCES, themeFromConfig, warningLines} from './lib.js';
+import {PressureAlerts, configValue, panelLabel, parseJsonLine, quickRows, themeFromConfig} from './lib.js';
 
 const BACKEND = 'system-optimize-tray-backend';
+const APP = 'system-optimize-tray';
 const AGENT = 'system-optimize-agent';
-const READOUT_ROWS = 5;
+const APP_ID = 'io.github.bradvrudney.SystemOptimizeTray';
+const QUICK_ROWS = 12;
 const RESTART_SECONDS = 10;
 const THEME_CLASSES = ['so-theme-light', 'so-theme-dark'];
 
@@ -37,15 +40,18 @@ function readConfig() {
     }
 }
 
-function readTheme() {
-    return themeFromConfig(readConfig());
-}
-
 function applyTheme(actor, theme) {
     for (const c of THEME_CLASSES)
         actor.remove_style_class_name(c);
     if (theme !== 'system')
         actor.add_style_class_name(`so-theme-${theme}`);
+}
+
+// Present while the indicator has been quit for this session. It lives in
+// XDG_RUNTIME_DIR, so it is gone at the next login; starting the app from
+// the app grid removes it, which brings the indicator back at once.
+function quitFlag() {
+    return Gio.File.new_for_path(GLib.build_filenamev([GLib.get_user_runtime_dir(), 'system-optimize-tray.quit']));
 }
 
 // Run argv; call done(stdout, exitCode). Never throws into the shell.
@@ -69,25 +75,6 @@ function runAsync(argv, cancellable, done) {
     });
 }
 
-const OutputDialog = GObject.registerClass(
-class OutputDialog extends ModalDialog.ModalDialog {
-    _init(title, text) {
-        super._init({styleClass: 'so-output-dialog'});
-        applyTheme(this.dialogLayout, readTheme());
-        const heading = new St.Label({text: title, style_class: 'so-output-title'});
-        this.contentLayout.add_child(heading);
-        const label = new St.Label({text, style_class: 'so-output-text'});
-        label.clutter_text.line_wrap = false;
-        label.clutter_text.selectable = true;
-        const box = new St.BoxLayout();
-        box.add_child(label);
-        const scroll = new St.ScrollView({style_class: 'so-output-scroll', x_expand: true, y_expand: true});
-        scroll.set_child(box);
-        this.contentLayout.add_child(scroll);
-        this.setButtons([{label: 'Close', action: () => this.close(), key: Clutter.KEY_Escape}]);
-    }
-});
-
 const Indicator = GObject.registerClass(
 class Indicator extends PanelMenu.Button {
     _init(ext) {
@@ -96,11 +83,12 @@ class Indicator extends PanelMenu.Button {
         this._cancellable = new Gio.Cancellable();
         this._info = {found: false, features: [], capabilities: []};
         this._sample = null;
+        this._proposal = null;
         this._pressure = new PressureAlerts();
-        this._busy = false;
         this._monitor = null;
         this._restartId = 0;
         this._backend = GLib.find_program_in_path(BACKEND);
+        this._app = GLib.find_program_in_path(APP);
         this._agent = GLib.find_program_in_path(AGENT);
 
         const box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
@@ -112,38 +100,28 @@ class Indicator extends PanelMenu.Button {
         box.add_child(this._label);
         this.add_child(box);
 
-        this._readout = [];
-        for (let i = 0; i < READOUT_ROWS; i++) {
+        // A fixed set of rows, shown and hidden as quickRows asks.
+        this._rows = [];
+        for (let i = 0; i < QUICK_ROWS; i++) {
             const item = new PopupMenu.PopupMenuItem('');
-            item.connect('activate', () => {
-                if (item._resource)
-                    this._openPanel(['--resource', item._resource]);
-            });
-            this._readout.push(item);
+            item.visible = false;
+            item.connect('activate', () => this._openApp(item._page));
+            this._rows.push(item);
             this.menu.addMenuItem(item);
         }
-        const history = new PopupMenu.PopupSubMenuMenuItem('Resource history');
-        for (const [key, title] of RESOURCES)
-            history.menu.addAction(title, () => this._openPanel(['--resource', key]));
-        this.menu.addMenuItem(history);
-        // conflict warnings and pressure (PSI) alerts, only while there are any
-        this._warnSection = new PopupMenu.PopupMenuSection();
-        this.menu.addMenuItem(this._warnSection);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this._featureSection = new PopupMenu.PopupMenuSection();
-        this.menu.addMenuItem(this._featureSection);
+        this._openItem = this.menu.addAction('Open dashboard', () => this._openApp('overview'));
+        this._settingsItem = this.menu.addAction('Settings…', () => this._openApp('settings'));
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this._actionSection = new PopupMenu.PopupMenuSection();
-        this.menu.addMenuItem(this._actionSection);
+        this.menu.addAction('Quit', () => this._ext.quit());
 
         this.menu.connect('open-state-changed', (_m, open) => {
             if (open) {
-                applyTheme(this.menu.box, readTheme());
+                applyTheme(this.menu.box, themeFromConfig(readConfig()));
                 this._refresh();
             }
         });
         this._showSample(null);
-        this._rebuild();
         this._startMonitor();
         this._refresh();
     }
@@ -202,13 +180,6 @@ class Indicator extends PanelMenu.Button {
 
     _showSample(sample) {
         this._label.text = panelLabel(sample);
-        const lines = readoutLines(sample);
-        this._readout.forEach((item, i) => {
-            item.label.text = lines[i] ?? '';
-            item.visible = i < lines.length;
-            item._resource = readoutResource(lines[i]);
-            item.reactive = Boolean(item._resource);
-        });
         this._sample = sample;
         const fresh = this._pressure.update(sample);
         // psi-notify does the same notifications when it runs: don't double up
@@ -216,138 +187,103 @@ class Indicator extends PanelMenu.Button {
             for (const text of fresh)
                 Main.notify('system-optimize', text);
         }
-        this._showWarnings();
+        this._showRows();
     }
 
-    _showWarnings() {
-        const lines = [...warningLines(this._sample, this._info), ...this._pressure.active];
-        const key = lines.join('\n');
-        if (key === this._warnKey)
-            return;
-        this._warnKey = key;
-        this._warnSection.removeAll();
-        for (const text of lines) {
-            const item = new PopupMenu.PopupMenuItem(`⚠ ${text}`, {reactive: false});
-            item.label.clutter_text.line_wrap = true;
-            item.add_style_class_name('so-warning');
-            this._warnSection.addMenuItem(item);
-        }
+    // -- the rows ------------------------------------------------------
+    _showRows() {
+        let rows;
+        if (!this._backend)
+            rows = [{kind: 'status', text: 'Install system-optimize-tray to use this extension', page: null}];
+        else
+            rows = quickRows(this._sample, this._info, this._proposal, this._pressure.active);
+        this._rows.forEach((item, i) => {
+            const row = rows[i];
+            item.visible = Boolean(row);
+            if (!row)
+                return;
+            if (item.label.text !== row.text)
+                item.label.text = row.text;
+            item._page = row.page;
+            item.reactive = Boolean(row.page && this._app);
+            if (row.kind === 'warning')
+                item.add_style_class_name('so-warning');
+            else
+                item.remove_style_class_name('so-warning');
+        });
+        this._openItem.visible = Boolean(this._app);
+        this._settingsItem.visible = Boolean(this._app);
     }
 
-    // -- features -----------------------------------------------------
     _refresh() {
-        if (!this._backend || this._busy)
+        if (!this._backend)
             return;
         runAsync([this._backend, 'features'], this._cancellable, (out, code) => {
             const info = code === 0 ? parseJsonLine(out.trim()) : null;
             if (info)
                 this._info = info;
-            this._rebuild();
-            this._showWarnings();
+            this._showRows();
         });
         if (this._agent) {
             runAsync([this._agent, 'proposal', '--json'], this._cancellable, (out, code) => {
-                this._proposal = code === 0 ? parseJsonLine(out.trim()) : null;
-                this._rebuild();
+                const p = code === 0 ? parseJsonLine(out.trim()) : null;
+                this._proposal = p?.pending ? p : null;
+                this._showRows();
             });
         }
     }
 
-    _rebuild() {
-        this._featureSection.removeAll();
-        this._actionSection.removeAll();
-        if (!this._backend) {
-            this._featureSection.addMenuItem(new PopupMenu.PopupMenuItem(
-                'Install system-optimize-tray to use this extension', {reactive: false}));
-            return;
-        }
-        if (!this._info.found) {
-            this._featureSection.addMenuItem(new PopupMenu.PopupMenuItem(
-                'system-optimize is not installed', {reactive: false}));
-        } else {
-            // One collapsed submenu per category, so the menu stays short.
-            for (const g of categories(this._info)) {
-                const sub = new PopupMenu.PopupSubMenuMenuItem(`${g.title}  ·  ${categoryCount(g)}`);
-                for (const f of g.entries) {
-                    const item = new PopupMenu.PopupSwitchMenuItem(f.label, f.checked);
-                    item.setSensitive(f.enabled && !this._busy);
-                    item.accessible_description = f.tip;
-                    item.connect('toggled', (_i, state) => this._change(['set', f.name, state ? 'on' : 'off']));
-                    sub.menu.addMenuItem(item);
-                }
-                this._featureSection.addMenuItem(sub);
-            }
-            const a = actionsAvailable(this._info);
-            this._action('Preview changes…', a.preview, () => this._text('Preview (dry run)', ['preview']));
-            this._action('Apply all optimizations', a.applyAll, () => this._change(['apply-all']));
-            this._action('Undo last run', a.undo, () => this._change(['undo']));
-            if (a.profiles.length) {
-                const sub = new PopupMenu.PopupSubMenuMenuItem('Workload profile');
-                for (const p of a.profiles) {
-                    const item = new PopupMenu.PopupMenuItem(p);
-                    if (p === this._info.profile)
-                        item.setOrnament(PopupMenu.Ornament.CHECK);
-                    item.setSensitive(!this._busy);
-                    item.connect('activate', () => this._change(['profile', p]));
-                    sub.menu.addMenuItem(item);
-                }
-                this._actionSection.addMenuItem(sub);
-            }
-            if (a.benchmark)
-                this._action('Run a benchmark…', true, () => this._text('Benchmark', ['benchmark']));
-            this._action('Status report…', a.status, () => this._text('Status report', ['status']));
-        }
-        if (GLib.find_program_in_path('system-optimize-tray'))
-            this._action('Open dashboard…', true, () => this._openPanel([]), true);
-        if (this._agent) {
-            this._actionSection.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            if (this._proposal?.pending)
-                this._action(`Agent suggests: ${this._proposal.summary}`, true, () => this._openPanel(['--chat']), true);
-            this._action('Ask the tuning agent…', true, () => this._openPanel(['--chat']), true);
-        }
-    }
-
-    _action(text, enabled, fn, always = false) {
-        const item = new PopupMenu.PopupMenuItem(text);
-        item.setSensitive(Boolean(enabled) && (always || !this._busy));
-        item.connect('activate', fn);
-        this._actionSection.addMenuItem(item);
-    }
-
-    _setBusy(busy) {
-        this._busy = busy;
-        this._rebuild();
-    }
-
-    _change(args) {
-        this._setBusy(true);
-        runAsync([this._backend, ...args], this._cancellable, (out, code) => {
-            this._setBusy(false);
-            const msg = resultMessage(parseJsonLine(out.trim().split('\n').pop()) ??
-                {ok: false, code, output: out});
-            Main.notify(msg.title, msg.body);
-            this._refresh();
-        });
-    }
-
-    _text(title, args) {
-        this._setBusy(true);
-        if (args[0] === 'benchmark')
-            Main.notify('system-optimize', 'Benchmark running; this takes a minute or two');
-        runAsync([this._backend, ...args], this._cancellable, out => {
-            this._setBusy(false);
-            new OutputDialog(title, out.trim()).open();
-        });
-    }
-
-    // The full dashboard (feature details, history, agent chat, About) is
-    // the Qt panel, opened as a normal window.
-    _openPanel(extra) {
+    // -- the full view ---------------------------------------------------
+    // One window per user: a second start hands its page to the running one
+    // and exits (so_tray/app.py). Wayland lets only the Shell move focus, so
+    // the Shell brings the window forward itself.
+    _openApp(page) {
+        const args = [APP, '--panel'];
+        if (page?.startsWith('resource:'))
+            args.push('--resource', page.slice('resource:'.length));
+        else if (page?.startsWith('step:'))
+            args.push('--step', page.slice('step:'.length));
+        else if (page)
+            args.push('--page', page);
+        let p;
         try {
-            const p = Gio.Subprocess.new(['system-optimize-tray', '--panel', ...extra], Gio.SubprocessFlags.NONE);
-            p.wait_async(null, null);
+            p = Gio.Subprocess.new(args, Gio.SubprocessFlags.STDERR_PIPE);
         } catch (e) {
             Main.notify('system-optimize', `Cannot open the dashboard: ${e.message}`);
+            return;
+        }
+        // The window runs until it is closed. When the start fails instead
+        // (no Qt for Python, say), its last line of stderr says why.
+        p.communicate_utf8_async(null, this._cancellable, (proc, res) => {
+            let err = '';
+            try {
+                [, , err] = proc.communicate_utf8_finish(res);
+            } catch (e) {
+                if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    return;
+            }
+            if (proc.get_if_exited() && !proc.get_successful()) {
+                const why = (err ?? '').trim().split('\n').pop() || `exit status ${proc.get_exit_status()}`;
+                Main.notify('system-optimize', `Cannot open the dashboard: ${why}`);
+            }
+        });
+        for (const ms of [300, 1500]) {
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+                if (!this._cancellable.is_cancelled())
+                    this._raiseWindow();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    _raiseWindow() {
+        for (const actor of global.get_window_actors()) {
+            const win = actor.meta_window;
+            const ids = [win.get_wm_class(), win.get_wm_class_instance(), win.get_gtk_application_id?.()];
+            if (ids.some(id => id === APP_ID || id === APP)) {
+                Main.activateWindow(win);
+                return;
+            }
         }
     }
 
@@ -365,12 +301,55 @@ class Indicator extends PanelMenu.Button {
 
 export default class SystemOptimizeExtension extends Extension {
     enable() {
-        this._indicator = new Indicator(this);
-        Main.panel.addToStatusArea(this.uuid, this._indicator);
+        // The Shell disables and enables extensions around the lock screen:
+        // a quit indicator stays away until the flag goes.
+        this._flag = quitFlag();
+        try {
+            this._watch = this._flag.monitor_file(Gio.FileMonitorFlags.NONE, null);
+            this._watch.connect('changed', () => this._sync());
+        } catch {
+            this._watch = null;
+        }
+        this._sync();
+    }
+
+    _sync() {
+        const quit = this._flag.query_exists(null);
+        if (quit && this._indicator) {
+            this._indicator.destroy();
+            this._indicator = null;
+        } else if (!quit && !this._indicator) {
+            this._indicator = new Indicator(this);
+            Main.panel.addToStatusArea(this.uuid, this._indicator);
+        }
+    }
+
+    // Quit: close the full view, stop the monitor (and with it the resource
+    // history and pressure notifications) and take the indicator away for
+    // the rest of this session. The extension stays enabled.
+    quit() {
+        try {
+            Gio.Subprocess.new([APP, '--quit'], Gio.SubprocessFlags.STDERR_SILENCE);
+        } catch {
+            // not installed: nothing to close
+        }
+        try {
+            this._flag.replace_contents(new TextEncoder().encode('quit\n'), null, false,
+                Gio.FileCreateFlags.NONE, null);
+        } catch (e) {
+            console.warn(`system-optimize: cannot write the quit flag: ${e.message}`);
+        }
+        this._sync();
+        Main.notify('system-optimize has quit',
+            'Readings, resource history and pressure alerts are paused. It starts again when you log in, ' +
+            'or now by opening system-optimize from the app grid.');
     }
 
     disable() {
+        this._watch?.cancel();
+        this._watch = null;
         this._indicator?.destroy();
         this._indicator = null;
+        this._flag = null;
     }
 }

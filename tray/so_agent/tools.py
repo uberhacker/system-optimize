@@ -58,6 +58,12 @@ class Proposal:
             return "switch to the %s profile" % self.target
         return "undo the last run"
 
+    def page(self):
+        """Where in the dashboard this can be acted on: the step's own page
+        (its switch, what it does, and this suggestion with Apply), else the
+        agent's page."""
+        return page_for(self.action, self.target)
+
     def to_dict(self):
         return {"action": self.action, "target": self.target, "reason": self.reason, "summary": self.summary()}
 
@@ -77,6 +83,13 @@ class Proposal:
         if self.action == "apply_profile":
             return cli.apply_profile(self.target, safe=True)
         return cli.undo()
+
+
+def page_for(action, target):
+    import re
+    if action in ("enable_step", "disable_step") and isinstance(target, str) and re.match(r"^[a-z][a-z0-9-]{0,31}$", target):
+        return "step:" + target
+    return "agent"
 
 
 def _find(info, name):

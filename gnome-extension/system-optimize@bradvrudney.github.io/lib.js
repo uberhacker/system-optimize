@@ -274,3 +274,78 @@ export function readoutResource(line) {
         return 'gpu_mem';
     return null;
 }
+
+// -- the quick view ---------------------------------------------------------
+// Mirrors so_tray.model.steps_summary and quick_rows; the fixture
+// tray/tests/fixtures/quick_rows.json keeps the two in step.
+const QUICK_WARNING_CHARS = 90;      // menu rows do not wrap
+const known = v => v !== null && v !== undefined;
+
+export function stepsSummary(info) {
+    if (!info?.found)
+        return 'system-optimize is not installed';
+    const feats = info.features ?? [];
+    const sure = feats.filter(f => known(f.applied));
+    let text = sure.length
+        ? `${sure.filter(f => f.applied).length} of ${sure.length} steps on`
+        : `${feats.length} step${feats.length === 1 ? '' : 's'}`;
+    if (info.profile)
+        text += ` · profile ${info.profile}`;
+    return text;
+}
+
+// [{kind, text, page}], top to bottom. kind: readout | status | warning |
+// suggestion; page: where a click goes in the full view.
+export function quickRows(sample, info, proposal = null, alerts = []) {
+    const rows = [];
+    const add = (kind, text, page) => rows.push({kind, text, page});
+    if (!sample) {
+        add('readout', 'Reading the system…', 'overview');
+    } else {
+        const cpu = sample.cpu ?? {}, mem = sample.memory ?? {};
+        const temp = sample.temperature ?? {}, disk = sample.disk ?? {}, power = sample.power ?? {};
+        const parts = [`CPU ${known(cpu.percent) ? `${round(cpu.percent)}%` : '–'}`];
+        if (cpu.mhz)
+            parts.push(`${(cpu.mhz / 1000).toFixed(1)} GHz`);
+        if (known(temp.cpu))
+            parts.push(`${round(temp.cpu)}°C`);
+        add('readout', parts.join(' · '), 'resource:cpu');
+        if (mem.total_mb) {
+            let m = `Memory ${gb(mem.used_mb ?? 0)} of ${gb(mem.total_mb)} GB`;
+            if (known(mem.percent))
+                m += ` (${round(mem.percent)}%)`;
+            add('readout', m, 'resource:memory');
+        }
+        if (known(disk.read_mbs) && known(disk.write_mbs))
+            add('readout', `Disk ${(disk.read_mbs + disk.write_mbs).toFixed(1)} MB/s`, 'resource:disk');
+        const gpu = sample.gpu ?? {};
+        if (gpu.mem_total_mb) {
+            let g = `GPU memory ${gb(gpu.mem_used_mb ?? 0)} of ${gb(gpu.mem_total_mb)} GB`;
+            if (known(gpu.mem_percent))
+                g += ` (${round(gpu.mem_percent)}%)`;
+            add('readout', g, 'resource:gpu_mem');
+        }
+        let p = `Power profile ${power.profile ?? 'unknown'}`;
+        if (power.owner)
+            p += ` (${power.owner})`;
+        const bat = (power.batteries ?? []).find(b => known(b.percent));
+        if (bat)
+            p += ` · battery ${bat.percent}%${bat.status ? ` ${bat.status.toLowerCase()}` : ''}`;
+        else if (known(power.ac))
+            p += power.ac ? ' · on AC' : ' · on battery';
+        add('readout', p, 'overview');
+    }
+    add('status', stepsSummary(info), 'settings');
+    for (let text of [...warningLines(sample, info), ...(alerts ?? [])]) {
+        if (text.length > QUICK_WARNING_CHARS)
+            text = `${text.slice(0, QUICK_WARNING_CHARS - 1)}…`;
+        add('warning', `⚠ ${text}`, 'overview');
+    }
+    if (proposal?.summary) {
+        // a step's own page when the suggestion is about one
+        const about = ['enable_step', 'disable_step'].includes(proposal.action) &&
+            /^[a-z][a-z0-9-]{0,31}$/.test(proposal.target ?? '');
+        add('suggestion', `Agent suggests: ${proposal.summary}`, about ? `step:${proposal.target}` : 'agent');
+    }
+    return rows;
+}

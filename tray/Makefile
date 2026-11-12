@@ -54,6 +54,7 @@ install-tray:
 	    $(DESTDIR)$(DATADIR)/icons/hicolor/scalable/apps $(DESTDIR)$(DATADIR)/icons/hicolor/symbolic/apps
 	$(INSTALL) -m 644 so_tray/*.py $(DESTDIR)$(PKGDATADIR)/so_tray/
 	$(INSTALL) -m 644 data/credits.json $(DESTDIR)$(PKGDATADIR)/credits.json
+	$(INSTALL) -m 644 data/whats-new.md $(DESTDIR)$(PKGDATADIR)/whats-new.md
 	$(INSTALL) -m 755 bin/system-optimize-tray bin/system-optimize-tray-backend $(DESTDIR)$(BINDIR)/
 	$(INSTALL) -m 755 helper/system-optimize-helper $(DESTDIR)$(LIBEXECDIR)/system-optimize-helper
 	$(INSTALL) -m 644 data/io.github.bradvrudney.system-optimize.policy $(DESTDIR)$(POLKITDIR)/
@@ -79,7 +80,7 @@ uninstall: uninstall-tray uninstall-extension uninstall-agent
 
 uninstall-tray:
 	rm -rf $(DESTDIR)$(PKGDATADIR)/so_tray
-	rm -f $(DESTDIR)$(PKGDATADIR)/credits.json \
+	rm -f $(DESTDIR)$(PKGDATADIR)/credits.json $(DESTDIR)$(PKGDATADIR)/whats-new.md \
 	    $(DESTDIR)$(BINDIR)/system-optimize-tray $(DESTDIR)$(BINDIR)/system-optimize-tray-backend \
 	    $(DESTDIR)$(LIBEXECDIR)/system-optimize-helper \
 	    $(DESTDIR)$(POLKITDIR)/io.github.bradvrudney.system-optimize.policy \

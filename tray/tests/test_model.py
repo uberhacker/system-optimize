@@ -77,7 +77,12 @@ class SettingsTest(unittest.TestCase):
         p = os.path.join(tempfile.mkdtemp(), "x", "tray.conf")
         self.assertEqual(settings.load(p), settings.DEFAULTS)
         self.assertEqual(settings.DEFAULTS, {"THEME": "system", "EXPANDED": "", "RECORD_HISTORY": "1",
-                                             "PSI_ALERTS": "1", "HISTORY_SOURCE": "auto"})
+                                             "PSI_ALERTS": "1", "HISTORY_SOURCE": "auto", "WINDOW": "",
+                                             "SEEN_VERSION": ""})
+        settings.save("WINDOW", "1040x680,max", p)
+        with self.assertRaises(ValueError):
+            settings.save("WINDOW", "wide", p)
+        settings.save("WINDOW", "", p)
         settings.save("THEME", "dark", p)
         settings.save("EXPANDED", "memory,storage", p)
         settings.save("THEME", "light", p)
@@ -142,6 +147,57 @@ class CompileTest(unittest.TestCase):
     def test_everything_compiles(self):
         res = subprocess.run(["python3", "-m", "compileall", "-q", TRAY], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+
+class WhatsNewTest(unittest.TestCase):
+    """Release notes for the people who use it (data/whats-new.md)."""
+
+    TEXT = "# What's new\n\n## 0.3.0 (December 2026)\n\nThird.\n\n- a\n\n## 0.2.0 (November 2026)\n\nSecond.\n\n## 0.1.0\n\nFirst.\n"
+
+    def test_entries_newest_first(self):
+        from so_tray import whatsnew
+        notes = whatsnew.entries(self.TEXT)
+        self.assertEqual([(n["version"], n["date"]) for n in notes],
+                         [("0.3.0", "December 2026"), ("0.2.0", "November 2026"), ("0.1.0", "")])
+        self.assertEqual(notes[0]["body"], "Third.\n\n- a")
+        self.assertEqual(whatsnew.entries(""), [])
+
+    def test_only_what_is_new_to_this_user(self):
+        from so_tray import whatsnew
+        notes = whatsnew.entries(self.TEXT)
+        self.assertEqual([n["version"] for n in whatsnew.since(notes, "0.1.0")], ["0.3.0", "0.2.0"])
+        self.assertEqual([n["version"] for n in whatsnew.since(notes, "0.3.0")], [])
+        self.assertEqual(len(whatsnew.since(notes, "")), 3)                 # never seen any: all of it
+        self.assertEqual([n["version"] for n in whatsnew.since(notes, "0.2.10")], ["0.3.0"])    # numbers, not text
+        self.assertIn("## Version 0.3.0  (December 2026)", whatsnew.markdown(notes))
+
+    def test_the_shipped_notes_cover_this_version_in_plain_words(self):
+        import so_tray
+        from so_tray import whatsnew
+        notes = whatsnew.entries(whatsnew.load_text())
+        self.assertEqual(notes[0]["version"], so_tray.VERSION)             # a release without notes fails here
+        self.assertTrue(notes[0]["date"])
+        body = notes[0]["body"]
+        self.assertGreater(len(body), 400)
+        for jargon in ("pkexec", "polkit", "JSON", "refactor", "PR #", "commit", "regex", "socket"):
+            self.assertNotIn(jargon, body)                                 # written for people, not for developers
+        versions = [whatsnew.version_key(n["version"]) for n in notes]
+        self.assertEqual(versions, sorted(versions, reverse=True))
+
+
+class QuickRowsTest(unittest.TestCase):
+    """The quick view (tray menu, GNOME panel menu): the same rows from the
+    same inputs as the extension's quickRows (gnome-extension/tests)."""
+
+    def test_rows_match_the_shared_fixture(self):
+        import json
+        import os
+        from so_tray.model import quick_rows
+        path = os.path.join(os.path.dirname(__file__), "fixtures", "quick_rows.json")
+        with open(path, encoding="utf-8") as fh:
+            cases = json.load(fh)
+        for c in cases:
+            self.assertEqual(quick_rows(c["sample"], c["info"], c["proposal"], c["alerts"]), c["rows"], c["name"])
 
 
 if __name__ == "__main__":

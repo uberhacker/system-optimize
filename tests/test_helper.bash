@@ -255,6 +255,10 @@ hide_host_tools() {
 # gs_put SCHEMA KEY VALUE: a gsettings key (the gsettings stub).
 gs_put() { mkdir -p "$STUB_STATE/gsettings"; printf '%s\n' "$3" > "$STUB_STATE/gsettings/$1 $2"; }
 gs_get() { cat "$STUB_STATE/gsettings/$1 $2"; }
+# gs_schema SCHEMA: the schema is installed (even with none of its keys set by gs_put).
+gs_schema() { mkdir -p "$STUB_STATE/gsettings"; : > "$STUB_STATE/gsettings/$1.schema"; }
+# gs_range SCHEMA KEY "NAME NAME...": the names a flags key accepts.
+gs_range() { mkdir -p "$STUB_STATE/gsettings"; tr -s ' ' '\n' <<< "$3" > "$STUB_STATE/gsettings/$1 $2.range"; }
 
 # as_desktop [DESKTOP] [TYPE]: the current user is the desktop user of a
 # DESKTOP (default gnome) TYPE (default wayland) session.

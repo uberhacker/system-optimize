@@ -102,7 +102,7 @@ jobs:
           if command -v apk >/dev/null; then apk add --no-cache git
           elif command -v dnf >/dev/null; then dnf install -y -q git-core
           elif command -v apt-get >/dev/null; then apt-get update -q && apt-get install -y -q --no-install-recommends git ca-certificates
-          elif command -v pacman >/dev/null; then pacman -Sy --noconfirm --needed git
+          elif command -v pacman >/dev/null; then pacman -Syu --noconfirm --needed git
           elif command -v zypper >/dev/null; then zypper -n install git-core
           fi
       - uses: actions/checkout@v4

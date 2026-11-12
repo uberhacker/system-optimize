@@ -31,13 +31,15 @@ class BuildArgsTest(unittest.TestCase):
             ("apply-all",): BASE,
             ("apply", "sysctl"): BASE + ["--only", "sysctl"],
             ("apply", "sysctl,io"): BASE + ["--only", "sysctl,io"],
-            ("enable", "caching"): BASE + ["--enable", "caching"],
+            ("enable", "caching"): BASE + ["--only", "caching"],     # just this step, not a full run
+            ("enable", "tuned,caching"): BASE + ["--only", "tuned,caching"],
             ("revert", "io"): BASE + ["--undo", "--only", "io"],
             ("undo",): BASE + ["--undo"],
             ("undo", "20261101-120000"): BASE + ["--undo", "20261101-120000"],
             ("undo", "20261101-120000-42"): BASE + ["--undo", "20261101-120000-42"],
             ("profile", "gaming"): BASE + ["--profile", "gaming"],
             ("--safe", "apply", "sysctl"): BASE + ["--safe-apply", "--only", "sysctl"],
+            ("--safe", "enable", "tuned"): BASE + ["--safe-apply", "--only", "tuned"],
             ("--safe", "profile", "llm"): BASE + ["--safe-apply", "--profile", "llm"],
             ("--safe", "apply-all"): BASE + ["--safe-apply"],
         }
@@ -94,6 +96,24 @@ class TrustTest(unittest.TestCase):
         self.assertFalse(H.trusted(prog, lstat=lstat))
         self.assertTrue(H.trusted(prog, lstat=lambda p: FakeStat(reg=os.path.isfile(p))))
         self.assertTrue(real_tree)
+
+    def test_single_file_install_beside_an_unrelated_lib_is_not_scanned(self):
+        # /usr/local/bin/system-optimize (the single-file install) sits next to
+        # /usr/local/lib, where Ollama and others keep files that are not root's;
+        # only a tree install (lib/core/ with the modules) has modules to check
+        import tempfile
+        tree = tempfile.mkdtemp()
+        os.makedirs(os.path.join(tree, "bin"))
+        os.makedirs(os.path.join(tree, "lib", "ollama"))
+        prog = os.path.join(tree, "bin", "system-optimize")
+        open(prog, "w").close()
+        open(os.path.join(tree, "lib", "ollama", "libcublas.so.12"), "w").close()
+
+        def lstat(p):
+            if p.endswith(".so.12"):
+                return FakeStat(uid=1000, reg=True)
+            return FakeStat(reg=os.path.isfile(p))
+        self.assertTrue(H.trusted(prog, lstat=lstat))
 
     def test_find_cli_refuses_an_untrusted_candidate(self):
         import tempfile

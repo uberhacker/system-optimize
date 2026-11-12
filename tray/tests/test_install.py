@@ -80,5 +80,138 @@ class MakeInstallTest(unittest.TestCase):
         self.assertEqual(left, [])
 
 
+def stub(d, name, body):
+    path = os.path.join(d, name)
+    with open(path, "w") as fh:
+        fh.write("#!/usr/bin/env bash\n" + body)
+    os.chmod(path, 0o755)
+    return path
+
+
+class ExtensionEnableTest(unittest.TestCase):
+    """GNOME Shell reads the system extension directory when it starts, so a
+    freshly installed extension is unknown to it and "gnome-extensions enable"
+    fails with "does not exist". install.sh then writes the UUID into the
+    enabled-extensions setting itself, so the shell turns it on at the next
+    login; the uninstall takes it out again."""
+
+    UUID = "system-optimize@bradvrudney.github.io"
+
+    def setUp(self):
+        if os.getuid() == 0:
+            self.skipTest("the extension is enabled per user, not as root")
+
+    def stubs(self, enabled, disabled="@as []", shell_knows=False):
+        d = tempfile.mkdtemp()
+        self.store = os.path.join(d, "store")
+        self.log = os.path.join(d, "log")
+        with open(self.store, "w") as fh:
+            fh.write("enabled-extensions=%s\ndisabled-extensions=%s\n" % (enabled, disabled))
+        stub(d, "sudo", "exit 0\n")
+        stub(d, "make", "exit 0\n")
+        stub(d, "gnome-extensions", 'printf "%%s\\n" "gnome-extensions $*" >> "%s"\n' % self.log
+             + ("exit 0\n" if shell_knows else 'echo "Extension “$2” does not exist" >&2; exit 2\n'))
+        stub(d, "gsettings", 'printf "%%s\\n" "gsettings $*" >> "%s"\n' % self.log
+             + 'case "$1" in\n'
+             + '  get) grep "^$3=" "%s" | cut -d= -f2- ;;\n' % self.store
+             + '  set) grep -v "^$3=" "%s" > "%s.new"; printf "%%s=%%s\\n" "$3" "$4" >> "%s.new"; mv "%s.new" "%s" ;;\n'
+             % (self.store, self.store, self.store, self.store, self.store)
+             + "esac\n")
+        return d + ":" + os.environ["PATH"]
+
+    def setting(self, key):
+        with open(self.store) as fh:
+            for line in fh:
+                if line.startswith(key + "="):
+                    return line.rstrip("\n").split("=", 1)[1]
+        return None
+
+    def calls(self):
+        with open(self.log) as fh:
+            return fh.read().splitlines()
+
+    def test_unknown_to_the_shell_is_set_to_enable_at_login(self):
+        path = self.stubs("['a@x', 'b@y']", disabled="['%s']" % self.UUID)
+        p = run("--extension", "--yes", path=path)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertNotIn("does not exist", p.stderr)
+        self.assertEqual(self.setting("enabled-extensions"), "['a@x', 'b@y', '%s']" % self.UUID)
+        self.assertEqual(self.setting("disabled-extensions"), "@as []")
+        self.assertIn("next login", p.stdout)
+
+    def test_empty_list_and_no_duplicate(self):
+        path = self.stubs("@as []")
+        p = run("--extension", "--yes", path=path)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(self.setting("enabled-extensions"), "['%s']" % self.UUID)
+        p = run("--extension", "--yes", path=path)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(self.setting("enabled-extensions"), "['%s']" % self.UUID)
+
+    def test_known_to_the_shell_uses_gnome_extensions_only(self):
+        path = self.stubs("['a@x']", shell_knows=True)
+        p = run("--extension", "--yes", path=path)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("gnome-extensions enable " + self.UUID, self.calls())
+        self.assertFalse([c for c in self.calls() if c.startswith("gsettings set")], self.calls())
+        self.assertEqual(self.setting("enabled-extensions"), "['a@x']")
+
+    def test_uninstall_takes_it_out_of_the_setting(self):
+        for before, after in (("['a@x', '%s', 'b@y']", "['a@x', 'b@y']"),
+                              ("['%s']", "@as []"),
+                              ("['a@x', '%s']", "['a@x']")):
+            path = self.stubs(before % self.UUID)
+            p = run("--uninstall", "--extension", "--yes", path=path)
+            self.assertEqual(p.returncode, 0, p.stderr)
+            self.assertNotIn("does not exist", p.stderr)
+            self.assertEqual(self.setting("enabled-extensions"), after)
+
+    def test_dry_run_prints_the_command_and_changes_nothing(self):
+        path = self.stubs("@as []")
+        p = run("--extension", "--dry-run", path=path)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("+ gnome-extensions enable " + self.UUID, p.stdout)
+        self.assertEqual(self.calls() if os.path.exists(self.log) else [], [])
+
+
+class QtDependencyTest(unittest.TestCase):
+    """The dashboard needs PySide6 or PyQt6 for Python 3. Nothing in the
+    Makefile can install that, so install.sh adds the distribution's package
+    when neither imports, and leaves Qt alone when one does."""
+
+    def stubs(self, qt_importable):
+        d = tempfile.mkdtemp()
+        stub(d, "sudo", "exit 0\n")
+        stub(d, "make", "exit 0\n")
+        stub(d, "dnf", "exit 0\n")
+        stub(d, "python3", "exit %d\n" % (0 if qt_importable else 1))
+        return d + ":" + os.environ["PATH"]
+
+    def test_installs_the_qt_binding_when_python_has_none(self):
+        p = run("--tray", "--dry-run", "--yes", path=self.stubs(qt_importable=False))
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertRegex(p.stdout, r"\+ (sudo )?dnf install -y python3-pyside6\n")
+
+    def test_leaves_qt_alone_when_a_binding_imports(self):
+        p = run("--tray", "--dry-run", "--yes", path=self.stubs(qt_importable=True))
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertNotIn("pyside6", p.stdout.lower())
+
+
+class LauncherTest(unittest.TestCase):
+    def test_missing_qt_is_one_line_not_a_traceback(self):
+        d = tempfile.mkdtemp()
+        for name in ("PySide6", "PyQt6"):       # stand-ins that fail like a missing package
+            os.makedirs(os.path.join(d, name))
+            with open(os.path.join(d, name, "__init__.py"), "w") as fh:
+                fh.write("raise ModuleNotFoundError(\"No module named '%s'\", name=%r)\n" % (name, name))
+        env = dict(os.environ, PYTHONPATH=d, SO_TRAY_LIBDIR=TRAY)
+        p = subprocess.run([os.path.join(TRAY, "bin", "system-optimize-tray"), "--panel"],
+                           env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        self.assertEqual(p.returncode, 1, p.stderr)
+        self.assertNotIn("Traceback", p.stderr)
+        self.assertIn("PySide6 or PyQt6", p.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
